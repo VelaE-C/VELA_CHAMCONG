@@ -204,6 +204,7 @@
     <button class="nav-tab admin-only" data-tab="projects" onclick="switchTab(this,'projects')" style="display:none">🗂 Dự Án</button>
     <button class="nav-tab admin-only" data-tab="hrprofile" onclick="switchTab(this,'hrprofile')" style="display:none">👤 Nhân Sự</button>
     <button class="nav-tab admin-only" data-tab="warnings" onclick="switchTab(this,'warnings');loadWarnings()" style="display:none">⚠️ Cảnh Báo</button>
+    <button class="nav-tab" data-tab="quanso" onclick="switchTab(this,'quanso');initQuanSo()">👷 Báo Cáo Quân Số</button>
   </div>
 
   <div class="content">
@@ -406,6 +407,23 @@
 <script>
 const SUPABASE_URL = 'https://ynffvkuwdrfqlmpemhes.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_TPB6sZUqz5z6549RU8hKhQ_F83ref0J';
+// ── SUPABASE B (App Tiến Độ - Quân Số) ──
+const SB2_URL = 'https://gqelblpdujdqdddisjei.supabase.co';
+const SB2_KEY = 'sb_publishable_ze2HoQt8kAzb0WSkZqSbdA_qupIyCmu';
+
+async function sb2Fetch(path, options = {}) {
+  const headers = {
+    'apikey': SB2_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation',
+    ...options.headers,
+    'Authorization': `Bearer ${SB2_KEY}`
+  };
+  const res = await fetch(`${SB2_URL}/rest/v1/${path}`, { ...options, headers });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `HTTP ${res.status}`); }
+  const t = await res.text(); return t ? JSON.parse(t) : [];
+}
+
 const GOOGLE_CLIENT_ID = '775858800222-r25d91n7qa5454aqhb2ni6q77kds2hns.apps.googleusercontent.com';
 const APP_URL = 'https://velae-c.github.io/VELA_CHAMCONG/index.html';
 
@@ -1389,6 +1407,179 @@ async function exportTeamExcel() {
   a.href=URL.createObjectURL(blob);
   a.download='BangCong_Nhom_T'+month+'_'+year+(proj?'_'+proj.code:'')+'.xlsx';
   a.click(); showToast('✅ Đã xuất Excel!');
+}
+
+// ── QUAN SO ──
+let qsProjects = [];
+
+async function initQuanSo() {
+  // Set default date = today
+  const todayEl = document.getElementById('qsNgay');
+  if (todayEl && !todayEl.value) todayEl.value = localDateStr();
+
+  // Load projects from Supabase B
+  if (qsProjects.length === 0) {
+    try {
+      qsProjects = await sb2Fetch('projects?order=code&select=id,code,name');
+      const sel = document.getElementById('qsDuAn');
+      const filterSel = document.getElementById('qsFilterProject');
+      sel.innerHTML = '<option value="">-- Chọn dự án --</option>';
+      if (filterSel) filterSel.innerHTML = '<option value="">Tất cả dự án</option>';
+
+      // Filter by user scope
+      const scope = state.currentUser.project_scope || 'fixed';
+      const userProjCode = getAccessibleProjectCodes();
+
+      qsProjects.forEach(p => {
+        // For non-superadmin, filter by matching project code pattern
+        if (scope !== 'all' && state.currentUser.role !== 'superadmin') {
+          const match = userProjCode.some(code =>
+            p.code.includes(code.replace(/ .*/,'')) || code.includes(p.code.replace(/ .*/,''))
+          );
+          if (!match) return;
+        }
+        sel.innerHTML += `<option value="${p.id}" data-code="${p.code}">${p.code} — ${p.name}</option>`;
+        if (filterSel) filterSel.innerHTML += `<option value="${p.id}">${p.code}</option>`;
+      });
+    } catch(e) {
+      showToast('❌ Không tải được danh sách dự án: ' + e.message);
+    }
+  }
+  await loadQuanSoHistory();
+}
+
+function getAccessibleProjectCodes() {
+  const scope = state.currentUser.project_scope || 'fixed';
+  if (scope === 'all') return [];
+  if (scope === 'multi') {
+    const ids = state.currentUser.allowed_projects || [];
+    return state.projects.filter(p => ids.includes(p.id)).map(p => p.code);
+  }
+  const p = state.projects.find(x => x.id === state.currentUser.project_id);
+  return p ? [p.code] : [];
+}
+
+function calcTotal() {
+  const kc = parseInt(document.getElementById('qsKetCau').value)||0;
+  const ht = parseInt(document.getElementById('qsHoanThien').value)||0;
+  const mep = parseInt(document.getElementById('qsMEP').value)||0;
+  document.getElementById('qsTotal').textContent = kc + ht + mep;
+}
+
+async function checkExistingReport() {
+  const projectId = document.getElementById('qsDuAn').value;
+  const ngay = document.getElementById('qsNgay').value;
+  const warn = document.getElementById('qsExistingWarn');
+  if (!projectId || !ngay) { warn.style.display='none'; return; }
+  try {
+    const rows = await sb2Fetch(`attendance_logs?project_id=eq.${projectId}&report_date=eq.${ngay}&limit=1`);
+    if (rows.length) {
+      warn.style.display = 'block';
+      // Pre-fill existing data
+      document.getElementById('qsKetCau').value = rows[0].qty_ketcau || 0;
+      document.getElementById('qsHoanThien').value = rows[0].qty_hoanthien || 0;
+      document.getElementById('qsMEP').value = rows[0].qty_mep || 0;
+      document.getElementById('qsBCH').value = rows[0].qty_bch || 0;
+      document.getElementById('qsNote').value = rows[0].note || '';
+      calcTotal();
+    } else {
+      warn.style.display = 'none';
+    }
+  } catch(e) { warn.style.display='none'; }
+}
+
+async function submitQuanSo() {
+  const sel = document.getElementById('qsDuAn');
+  const projectId = sel.value;
+  const projectCode = sel.options[sel.selectedIndex]?.dataset?.code || '';
+  const ngay = document.getElementById('qsNgay').value;
+  const kc = parseInt(document.getElementById('qsKetCau').value)||0;
+  const ht = parseInt(document.getElementById('qsHoanThien').value)||0;
+  const mep = parseInt(document.getElementById('qsMEP').value)||0;
+  const bch = parseInt(document.getElementById('qsBCH').value)||0;
+  const note = document.getElementById('qsNote').value.trim();
+
+  if (!projectId) { showToast('⚠️ Chọn dự án trước'); return; }
+  if (!ngay) { showToast('⚠️ Chọn ngày báo cáo'); return; }
+  if (kc + ht + mep === 0) {
+    if (!confirm('Tổng nhân công = 0. Bạn có chắc muốn lưu?')) return;
+  }
+
+  const btn = document.querySelector('#tab-quanso .btn-primary');
+  btn.disabled = true; btn.textContent = '⏳ Đang lưu...';
+
+  try {
+    await sb2Fetch('attendance_logs', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify({
+        project_id:    projectId,
+        project_code:  projectCode,
+        report_date:   ngay,
+        qty_ketcau:    kc,
+        qty_hoanthien: ht,
+        qty_mep:       mep,
+        qty_bch:       bch,
+        reported_by:   state.currentUser.email || state.session?.user?.email || '',
+        note:          note
+      })
+    });
+
+    const proj = qsProjects.find(p => p.id === projectId);
+    const dateDisplay = ngay.split('-').reverse().join('/');
+    showToast(`✅ Đã lưu báo cáo ${proj?.code||''} ngày ${dateDisplay}`);
+    document.getElementById('qsExistingWarn').style.display = 'none';
+    await loadQuanSoHistory();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Lưu báo cáo';
+  }
+}
+
+async function loadQuanSoHistory() {
+  const el = document.getElementById('qsHistory'); if (!el) return;
+  const filterProjId = document.getElementById('qsFilterProject')?.value || '';
+  el.innerHTML = '<div class="loading"><span class="spinner"></span> Đang tải...</div>';
+  try {
+    let url = `attendance_logs?order=report_date.desc&limit=30`;
+    if (filterProjId) url += `&project_id=eq.${filterProjId}`;
+    // Filter by accessible projects for non-superadmin
+    const rows = await sb2Fetch(url);
+    if (!rows.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div>Chưa có dữ liệu</div>';
+      return;
+    }
+    el.innerHTML = `<div class="att-table-wrap"><table>
+      <thead><tr>
+        <th>Ngày</th><th>Dự án</th>
+        <th style="text-align:center">KC</th>
+        <th style="text-align:center">HT</th>
+        <th style="text-align:center">MEP</th>
+        <th style="text-align:center">Tổng CN</th>
+        <th style="text-align:center">BCH</th>
+        <th>Người nhập</th>
+        <th>Ghi chú</th>
+      </tr></thead>
+      <tbody>${rows.map((r,i) => {
+        const d = r.report_date.split('-').reverse().join('/');
+        const bg = i%2===0?'':'background:rgba(255,255,255,.02)';
+        return `<tr style="${bg}">
+          <td style="font-family:monospace;white-space:nowrap">${d}</td>
+          <td><span style="color:var(--accent);font-weight:600;font-size:12px">${r.project_code||'—'}</span></td>
+          <td style="text-align:center">${r.qty_ketcau||0}</td>
+          <td style="text-align:center">${r.qty_hoanthien||0}</td>
+          <td style="text-align:center">${r.qty_mep||0}</td>
+          <td style="text-align:center;font-weight:700;color:var(--accent)">${r.qty_total||0}</td>
+          <td style="text-align:center">${r.qty_bch||0}</td>
+          <td style="font-size:12px;color:var(--text3)">${(r.reported_by||'').split('@')[0]}</td>
+          <td style="font-size:12px;color:var(--text3)">${r.note||'—'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  } catch(e) {
+    el.innerHTML = '<div class="empty-state">❌ ' + e.message + '</div>';
+  }
 }
 
 // ── WARNINGS ──
