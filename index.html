@@ -391,6 +391,54 @@
     </div>
 
 
+    <!-- QUAN SO TAB -->
+    <div class="tab-pane" id="tab-quanso">
+      <div class="card">
+        <div class="card-title">📋 Báo cáo quân số hàng ngày</div>
+        <div class="admin-form">
+          <div class="form-row">
+            <div class="field-group">
+              <label>Dự án</label>
+              <select id="qsDuAn" onchange="checkExistingReport()"><option value="">-- Đang tải... --</option></select>
+            </div>
+            <div class="field-group">
+              <label>Ngày báo cáo</label>
+              <input type="date" id="qsNgay" onchange="checkExistingReport()">
+            </div>
+          </div>
+          <div id="qsExistingWarn" style="display:none;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--accent)">
+            ⚠️ Đã có báo cáo ngày này. Nhấn Lưu sẽ <strong>cập nhật</strong> dữ liệu cũ.
+          </div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:20px">
+            <div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:16px">Số lượng nhân công</div>
+            <div class="form-row">
+              <div class="field-group"><label>🏗 CN Kết cấu</label><input type="number" id="qsKetCau" min="0" value="0" oninput="calcTotal()"></div>
+              <div class="field-group"><label>🎨 CN Hoàn thiện</label><input type="number" id="qsHoanThien" min="0" value="0" oninput="calcTotal()"></div>
+            </div>
+            <div class="form-row">
+              <div class="field-group"><label>⚡ CN MEP</label><input type="number" id="qsMEP" min="0" value="0" oninput="calcTotal()"></div>
+              <div class="field-group"><label>🏢 Số BCH có mặt</label><input type="number" id="qsBCH" min="0" value="0"></div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-top:8px">
+              <span style="font-size:13px;color:var(--text2);font-weight:500">Tổng CN (KC + HT + MEP)</span>
+              <span id="qsTotal" style="font-size:28px;font-weight:700;font-family:monospace;color:var(--accent)">0</span>
+            </div>
+          </div>
+          <div class="field-group"><label>Ghi chú (tùy chọn)</label><textarea id="qsNote" placeholder="Ghi chú thêm nếu có..."></textarea></div>
+          <button class="btn-primary" id="qsSubmitBtn" onclick="submitQuanSo()">💾 Lưu báo cáo</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:0">Lịch sử báo cáo gần đây</div>
+          <select id="qsFilterProject" onchange="loadQuanSoHistory()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
+            <option value="">Tất cả dự án</option>
+          </select>
+        </div>
+        <div id="qsHistory" class="empty-state"><div class="empty-icon">📋</div>Chưa có dữ liệu</div>
+      </div>
+    </div>
+
 <!-- FOOTER -->
 <div style="text-align:center;padding:20px 16px 32px;border-top:1px solid var(--border);margin-top:8px">
   <img src="https://raw.githubusercontent.com/VelaE-C/VELA_CHAMCONG/refs/heads/main/LOGO%20VELA.png" style="height:32px;object-fit:contain;opacity:.7;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto" alt="Vela E&C">
@@ -1505,7 +1553,7 @@ async function submitQuanSo() {
     if (!confirm('Tổng nhân công = 0. Bạn có chắc muốn lưu?')) return;
   }
 
-  const btn = document.querySelector('#tab-quanso .btn-primary');
+  const btn = document.getElementById('qsSubmitBtn');
   btn.disabled = true; btn.textContent = '⏳ Đang lưu...';
 
   try {
