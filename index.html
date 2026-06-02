@@ -396,46 +396,87 @@
       <div class="card">
         <div class="card-title">📋 Báo cáo quân số hàng ngày</div>
         <div class="admin-form">
+
           <div class="form-row">
             <div class="field-group">
               <label>Dự án</label>
-              <select id="qsDuAn" onchange="checkExistingReport()"><option value="">-- Đang tải... --</option></select>
+              <select id="qsDuAn" onchange="onQsDuAnChange()">
+                <option value="">-- Chọn dự án --</option>
+              </select>
             </div>
             <div class="field-group">
               <label>Ngày báo cáo</label>
-              <input type="date" id="qsNgay" onchange="checkExistingReport()">
+              <input type="date" id="qsNgay" onchange="onQsNgayChange()">
             </div>
           </div>
+
           <div id="qsExistingWarn" style="display:none;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--accent)">
             ⚠️ Đã có báo cáo ngày này. Nhấn Lưu sẽ <strong>cập nhật</strong> dữ liệu cũ.
           </div>
+
+          <!-- BCH auto info -->
+          <div id="qsBCHInfo" style="display:none;background:rgba(39,196,122,.08);border:1px solid rgba(39,196,122,.2);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--green)">
+            ✅ <span id="qsBCHInfoText"></span>
+          </div>
+
+          <!-- CN inputs -->
           <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:20px">
             <div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:16px">Số lượng nhân công</div>
             <div class="form-row">
-              <div class="field-group"><label>🏗 CN Kết cấu</label><input type="number" id="qsKetCau" min="0" value="0" oninput="calcTotal()"></div>
-              <div class="field-group"><label>🎨 CN Hoàn thiện</label><input type="number" id="qsHoanThien" min="0" value="0" oninput="calcTotal()"></div>
+              <div class="field-group">
+                <label>🏗 CN Kết cấu</label>
+                <input type="number" id="qsKetCau" min="0" value="0" oninput="calcTotal()">
+              </div>
+              <div class="field-group">
+                <label>🎨 CN Hoàn thiện</label>
+                <input type="number" id="qsHoanThien" min="0" value="0" oninput="calcTotal()">
+              </div>
             </div>
             <div class="form-row">
-              <div class="field-group"><label>⚡ CN MEP</label><input type="number" id="qsMEP" min="0" value="0" oninput="calcTotal()"></div>
-              <div class="field-group"><label>🏢 Số BCH có mặt</label><input type="number" id="qsBCH" min="0" value="0"></div>
+              <div class="field-group">
+                <label>⚡ CN MEP</label>
+                <input type="number" id="qsMEP" min="0" value="0" oninput="calcTotal()">
+              </div>
+              <div class="field-group">
+                <label>🔨 CN Công nhật</label>
+                <input type="number" id="qsCongNhat" min="0" value="0" oninput="calcTotal()">
+              </div>
             </div>
+
+            <!-- Total -->
             <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-top:8px">
-              <span style="font-size:13px;color:var(--text2);font-weight:500">Tổng CN (KC + HT + MEP)</span>
+              <span style="font-size:13px;color:var(--text2);font-weight:500">Tổng CN (KC + HT + MEP + CN nhật)</span>
               <span id="qsTotal" style="font-size:28px;font-weight:700;font-family:monospace;color:var(--accent)">0</span>
             </div>
           </div>
-          <div class="field-group"><label>Ghi chú (tùy chọn)</label><textarea id="qsNote" placeholder="Ghi chú thêm nếu có..."></textarea></div>
+
+          <!-- BCH -->
+          <div class="field-group">
+            <label>🏢 Số BCH có mặt <span style="color:var(--text3);font-weight:400;font-size:11px">(tự động từ bảng chấm công, có thể sửa)</span></label>
+            <input type="number" id="qsBCH" min="0" value="0">
+          </div>
+
+          <div class="field-group">
+            <label>Ghi chú (tùy chọn)</label>
+            <textarea id="qsNote" placeholder="Ghi chú thêm nếu có..."></textarea>
+          </div>
+
           <button class="btn-primary" id="qsSubmitBtn" onclick="submitQuanSo()">💾 Lưu báo cáo</button>
         </div>
       </div>
+
+      <!-- History -->
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div class="card-title" style="margin-bottom:0">Lịch sử báo cáo gần đây</div>
-          <select id="qsFilterProject" onchange="loadQuanSoHistory()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
+          <select id="qsFilterProject" onchange="loadQuanSoHistory()"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
             <option value="">Tất cả dự án</option>
           </select>
         </div>
-        <div id="qsHistory" class="empty-state"><div class="empty-icon">📋</div>Chưa có dữ liệu</div>
+        <div id="qsHistory" class="empty-state">
+          <div class="empty-icon">📋</div>Chưa có dữ liệu
+        </div>
       </div>
     </div>
 
@@ -1458,99 +1499,146 @@ async function exportTeamExcel() {
 }
 
 // ── QUAN SO ──
-let qsProjects = [];
+// State: map project_id (ChamCong A) → project in Tiến Độ B
+let qsProjectMap = {}; // chamcong_code → {id, code, name} in B
 
 async function initQuanSo() {
-  // Set default date = today
   const todayEl = document.getElementById('qsNgay');
   if (todayEl && !todayEl.value) todayEl.value = localDateStr();
 
-  // Load projects from Supabase B
-  if (qsProjects.length === 0) {
-    try {
-      qsProjects = await sb2Fetch('projects?order=code&select=id,code,name');
-      const sel = document.getElementById('qsDuAn');
-      const filterSel = document.getElementById('qsFilterProject');
-      sel.innerHTML = '<option value="">-- Chọn dự án --</option>';
-      if (filterSel) filterSel.innerHTML = '<option value="">Tất cả dự án</option>';
+  // Populate dropdown from state.projects (Supabase A - ChamCong)
+  const accessible = getAccessibleProjects();
+  const sel = document.getElementById('qsDuAn');
+  const filterSel = document.getElementById('qsFilterProject');
+  sel.innerHTML = '<option value="">-- Chọn dự án --</option>';
+  if (filterSel) filterSel.innerHTML = '<option value="">Tất cả dự án</option>';
 
-      // Filter by user scope
-      const scope = state.currentUser.project_scope || 'fixed';
-      const userProjCode = getAccessibleProjectCodes();
+  accessible.forEach(p => {
+    sel.innerHTML += `<option value="${p.id}" data-code="${p.code}">${p.code} — ${p.name}</option>`;
+    if (filterSel) filterSel.innerHTML += `<option value="${p.id}" data-code="${p.code}">${p.code}</option>`;
+  });
 
-      qsProjects.forEach(p => {
-        // For non-superadmin, filter by matching project code pattern
-        if (scope !== 'all' && state.currentUser.role !== 'superadmin') {
-          const match = userProjCode.some(code =>
-            p.code.includes(code.replace(/ .*/,'')) || code.includes(p.code.replace(/ .*/,''))
-          );
-          if (!match) return;
-        }
-        sel.innerHTML += `<option value="${p.id}" data-code="${p.code}">${p.code} — ${p.name}</option>`;
-        if (filterSel) filterSel.innerHTML += `<option value="${p.id}">${p.code}</option>`;
-      });
-    } catch(e) {
-      showToast('❌ Không tải được danh sách dự án: ' + e.message);
-    }
+  // Load project map from Supabase B (for UUID mapping)
+  try {
+    const projsB = await sb2Fetch('projects?order=code&select=id,code,name');
+    qsProjectMap = {};
+    projsB.forEach(p => { qsProjectMap[p.code] = p; });
+  } catch(e) {
+    console.warn('Không load được projects từ Tiến Độ:', e.message);
   }
+
   await loadQuanSoHistory();
 }
 
-function getAccessibleProjectCodes() {
-  const scope = state.currentUser.project_scope || 'fixed';
-  if (scope === 'all') return [];
-  if (scope === 'multi') {
-    const ids = state.currentUser.allowed_projects || [];
-    return state.projects.filter(p => ids.includes(p.id)).map(p => p.code);
-  }
-  const p = state.projects.find(x => x.id === state.currentUser.project_id);
-  return p ? [p.code] : [];
+function calcTotal() {
+  const kc  = parseInt(document.getElementById('qsKetCau').value)||0;
+  const ht  = parseInt(document.getElementById('qsHoanThien').value)||0;
+  const mep = parseInt(document.getElementById('qsMEP').value)||0;
+  const cn  = parseInt(document.getElementById('qsCongNhat').value)||0;
+  document.getElementById('qsTotal').textContent = kc + ht + mep + cn;
 }
 
-function calcTotal() {
-  const kc = parseInt(document.getElementById('qsKetCau').value)||0;
-  const ht = parseInt(document.getElementById('qsHoanThien').value)||0;
-  const mep = parseInt(document.getElementById('qsMEP').value)||0;
-  document.getElementById('qsTotal').textContent = kc + ht + mep;
+async function onQsDuAnChange() {
+  await checkExistingReport();
+  await autoFillBCH();
+}
+
+async function onQsNgayChange() {
+  await checkExistingReport();
+  await autoFillBCH();
+}
+
+// Auto-count BCH from attendance table (Supabase A)
+async function autoFillBCH() {
+  const projectId = document.getElementById('qsDuAn').value;
+  const ngay = document.getElementById('qsNgay').value;
+  const infoDiv = document.getElementById('qsBCHInfo');
+  const infoText = document.getElementById('qsBCHInfoText');
+  if (!projectId || !ngay) { infoDiv.style.display='none'; return; }
+  try {
+    const rows = await sbFetch(
+      `attendance?project_id=eq.${projectId}&check_date=eq.${ngay}&status=eq.present`
+    );
+    const count = rows.length;
+    document.getElementById('qsBCH').value = count;
+    infoDiv.style.display = 'block';
+    infoText.textContent = `Tự động đếm từ bảng chấm công: ${count} người có mặt ngày ${ngay.split('-').reverse().join('/')}`;
+  } catch(e) {
+    infoDiv.style.display = 'none';
+  }
+}
+
+// Find matching project in Supabase B by code similarity
+function findProjectB(codeA) {
+  // Try exact match first
+  if (qsProjectMap[codeA]) return qsProjectMap[codeA];
+  // Try partial match (e.g. "IEC 29CAN" matches "IEC 29CAN" or "IEC")
+  const codeAUpper = codeA.toUpperCase();
+  for (const [codeB, proj] of Object.entries(qsProjectMap)) {
+    if (codeAUpper.includes(codeB.toUpperCase()) || codeB.toUpperCase().includes(codeAUpper)) {
+      return proj;
+    }
+  }
+  return null;
 }
 
 async function checkExistingReport() {
-  const projectId = document.getElementById('qsDuAn').value;
+  const sel = document.getElementById('qsDuAn');
+  const projectIdA = sel.value;
+  const codeA = sel.options[sel.selectedIndex]?.dataset?.code || '';
   const ngay = document.getElementById('qsNgay').value;
   const warn = document.getElementById('qsExistingWarn');
-  if (!projectId || !ngay) { warn.style.display='none'; return; }
+  if (!projectIdA || !ngay) { warn.style.display='none'; return; }
+
+  const projB = findProjectB(codeA);
+  if (!projB) { warn.style.display='none'; return; }
+
   try {
-    const rows = await sb2Fetch(`attendance_logs?project_id=eq.${projectId}&report_date=eq.${ngay}&limit=1`);
+    const rows = await sb2Fetch(
+      `attendance_logs?project_id=eq.${projB.id}&report_date=eq.${ngay}&limit=1`
+    );
     if (rows.length) {
       warn.style.display = 'block';
-      // Pre-fill existing data
-      document.getElementById('qsKetCau').value = rows[0].qty_ketcau || 0;
+      document.getElementById('qsKetCau').value   = rows[0].qty_ketcau    || 0;
       document.getElementById('qsHoanThien').value = rows[0].qty_hoanthien || 0;
-      document.getElementById('qsMEP').value = rows[0].qty_mep || 0;
-      document.getElementById('qsBCH').value = rows[0].qty_bch || 0;
-      document.getElementById('qsNote').value = rows[0].note || '';
+      document.getElementById('qsMEP').value       = rows[0].qty_mep       || 0;
+      document.getElementById('qsCongNhat').value  = rows[0].qty_congnhat  || 0;
+      document.getElementById('qsBCH').value       = rows[0].qty_bch       || 0;
+      document.getElementById('qsNote').value      = rows[0].note          || '';
       calcTotal();
     } else {
       warn.style.display = 'none';
+      // Reset fields
+      ['qsKetCau','qsHoanThien','qsMEP','qsCongNhat'].forEach(id => document.getElementById(id).value=0);
+      document.getElementById('qsNote').value = '';
+      calcTotal();
     }
   } catch(e) { warn.style.display='none'; }
 }
 
 async function submitQuanSo() {
   const sel = document.getElementById('qsDuAn');
-  const projectId = sel.value;
-  const projectCode = sel.options[sel.selectedIndex]?.dataset?.code || '';
-  const ngay = document.getElementById('qsNgay').value;
-  const kc = parseInt(document.getElementById('qsKetCau').value)||0;
-  const ht = parseInt(document.getElementById('qsHoanThien').value)||0;
-  const mep = parseInt(document.getElementById('qsMEP').value)||0;
-  const bch = parseInt(document.getElementById('qsBCH').value)||0;
-  const note = document.getElementById('qsNote').value.trim();
+  const projectIdA = sel.value;
+  const codeA = sel.options[sel.selectedIndex]?.dataset?.code || '';
+  const ngay  = document.getElementById('qsNgay').value;
+  const kc    = parseInt(document.getElementById('qsKetCau').value)||0;
+  const ht    = parseInt(document.getElementById('qsHoanThien').value)||0;
+  const mep   = parseInt(document.getElementById('qsMEP').value)||0;
+  const cn    = parseInt(document.getElementById('qsCongNhat').value)||0;
+  const bch   = parseInt(document.getElementById('qsBCH').value)||0;
+  const note  = document.getElementById('qsNote').value.trim();
 
-  if (!projectId) { showToast('⚠️ Chọn dự án trước'); return; }
-  if (!ngay) { showToast('⚠️ Chọn ngày báo cáo'); return; }
-  if (kc + ht + mep === 0) {
+  if (!projectIdA) { showToast('⚠️ Chọn dự án trước'); return; }
+  if (!ngay)       { showToast('⚠️ Chọn ngày báo cáo'); return; }
+  if (kc+ht+mep+cn === 0) {
     if (!confirm('Tổng nhân công = 0. Bạn có chắc muốn lưu?')) return;
+  }
+
+  // Find matching project in Supabase B
+  const projB = findProjectB(codeA);
+  if (!projB) {
+    showToast(`❌ Không tìm thấy dự án "${codeA}" trong hệ thống Tiến Độ`);
+    return;
   }
 
   const btn = document.getElementById('qsSubmitBtn');
@@ -1561,21 +1649,20 @@ async function submitQuanSo() {
       method: 'POST',
       headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify({
-        project_id:    projectId,
-        project_code:  projectCode,
+        project_id:    projB.id,
+        project_code:  projB.code,
         report_date:   ngay,
         qty_ketcau:    kc,
         qty_hoanthien: ht,
         qty_mep:       mep,
+        qty_congnhat:  cn,
         qty_bch:       bch,
-        reported_by:   state.currentUser.email || state.session?.user?.email || '',
+        reported_by:   state.currentUser.email || '',
         note:          note
       })
     });
-
-    const proj = qsProjects.find(p => p.id === projectId);
     const dateDisplay = ngay.split('-').reverse().join('/');
-    showToast(`✅ Đã lưu báo cáo ${proj?.code||''} ngày ${dateDisplay}`);
+    showToast(`✅ Đã lưu báo cáo ${projB.code} ngày ${dateDisplay}`);
     document.getElementById('qsExistingWarn').style.display = 'none';
     await loadQuanSoHistory();
   } catch(e) {
@@ -1587,12 +1674,15 @@ async function submitQuanSo() {
 
 async function loadQuanSoHistory() {
   const el = document.getElementById('qsHistory'); if (!el) return;
-  const filterProjId = document.getElementById('qsFilterProject')?.value || '';
+  const filterEl = document.getElementById('qsFilterProject');
+  const filterCodeA = filterEl?.options[filterEl.selectedIndex]?.dataset?.code || '';
   el.innerHTML = '<div class="loading"><span class="spinner"></span> Đang tải...</div>';
   try {
-    let url = `attendance_logs?order=report_date.desc&limit=30`;
-    if (filterProjId) url += `&project_id=eq.${filterProjId}`;
-    // Filter by accessible projects for non-superadmin
+    let url = 'attendance_logs?order=report_date.desc&limit=50';
+    if (filterCodeA) {
+      const projB = findProjectB(filterCodeA);
+      if (projB) url += `&project_id=eq.${projB.id}`;
+    }
     const rows = await sb2Fetch(url);
     if (!rows.length) {
       el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div>Chưa có dữ liệu</div>';
@@ -1604,10 +1694,10 @@ async function loadQuanSoHistory() {
         <th style="text-align:center">KC</th>
         <th style="text-align:center">HT</th>
         <th style="text-align:center">MEP</th>
-        <th style="text-align:center">Tổng CN</th>
+        <th style="text-align:center">CN nhật</th>
+        <th style="text-align:center;color:var(--accent)">Tổng</th>
         <th style="text-align:center">BCH</th>
-        <th>Người nhập</th>
-        <th>Ghi chú</th>
+        <th>Người nhập</th><th>Ghi chú</th>
       </tr></thead>
       <tbody>${rows.map((r,i) => {
         const d = r.report_date.split('-').reverse().join('/');
@@ -1618,6 +1708,7 @@ async function loadQuanSoHistory() {
           <td style="text-align:center">${r.qty_ketcau||0}</td>
           <td style="text-align:center">${r.qty_hoanthien||0}</td>
           <td style="text-align:center">${r.qty_mep||0}</td>
+          <td style="text-align:center">${r.qty_congnhat||0}</td>
           <td style="text-align:center;font-weight:700;color:var(--accent)">${r.qty_total||0}</td>
           <td style="text-align:center">${r.qty_bch||0}</td>
           <td style="font-size:12px;color:var(--text3)">${(r.reported_by||'').split('@')[0]}</td>
