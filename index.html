@@ -1664,7 +1664,7 @@ async function submitQuanSo() {
   btn.disabled = true; btn.textContent = '⏳ Đang lưu...';
 
   try {
-    await sb2Fetch('attendance_logs', {
+    await sb2Fetch('attendance_logs?on_conflict=project_id,report_date', {
       method: 'POST',
       headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify({
