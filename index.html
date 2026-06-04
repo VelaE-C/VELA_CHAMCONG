@@ -1246,16 +1246,54 @@ async function loadTeamAttendance() {
   for(let d=1;d<=25;d++){dateList.push(new Date(year,month-1,d));}
 
   try {
-    let userUrl='users?is_active=eq.true&order=full_name';
-    if(projectId) userUrl+=`&project_id=eq.${projectId}`;
-    else if(state.currentUser.role==='site_admin'&&state.currentUser.project_id)
-      userUrl+=`&project_id=eq.${state.currentUser.project_id}`;
+    // Query attendance records for this period + project
     let attUrl=`attendance?check_date=gte.${startDate}&check_date=lte.${endDate}`;
     if(projectId) attUrl+=`&project_id=eq.${projectId}`;
-    const [users,attRows]=await Promise.all([sbFetch(userUrl),sbFetch(attUrl)]);
-    if(!users.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div>Không có nhân sự nào</div>';return;}
+
+    // Query ALL active users (not filtered by project_id)
+    // We'll determine who to show based on actual attendance data
+    let userUrl='users?is_active=eq.true&order=full_name';
+
+    // For site_admin without project filter: limit to their project
+    if(!projectId && state.currentUser.role==='site_admin' && state.currentUser.project_id) {
+      attUrl+=`&project_id=eq.${state.currentUser.project_id}`;
+    }
+
+    const [allUsers, attRows] = await Promise.all([sbFetch(userUrl), sbFetch(attUrl)]);
+
+    // Group attendance by user
     const attByUser={};
-    attRows.forEach(r=>{if(!attByUser[r.user_id])attByUser[r.user_id]={};attByUser[r.user_id][r.check_date]=r;});
+    attRows.forEach(r=>{
+      if(!attByUser[r.user_id]) attByUser[r.user_id]={};
+      attByUser[r.user_id][r.check_date]=r;
+    });
+
+    // Determine which users to show:
+    // If project selected: show users who ACTUALLY checked in at that project
+    // OR users whose fixed project matches (even if 0 attendance)
+    let users;
+    if(projectId) {
+      // Get user_ids that have attendance at this project in this period
+      const activeUserIds = new Set(attRows.map(r=>r.user_id));
+
+      // Also include fixed-project users assigned to this project
+      const fixedUsers = allUsers.filter(u =>
+        u.project_id === projectId && (u.project_scope==='fixed' || !u.project_scope)
+      );
+      fixedUsers.forEach(u => activeUserIds.add(u.id));
+
+      // Build final user list preserving order
+      users = allUsers.filter(u => activeUserIds.has(u.id));
+    } else {
+      // No project filter: show all active users
+      users = allUsers;
+    }
+
+    if(!users.length){
+      el.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div>Không có nhân sự nào trong kỳ này</div>';
+      return;
+    }
+
     state.lastTeamData={users,attByUser,month,year,dateList,projectId};
     renderTeamTable(users,attByUser,dateList,el,month,year);
   } catch(e){el.innerHTML='<div class="empty-state">❌ '+e.message+'</div>';}
