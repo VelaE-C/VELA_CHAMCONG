@@ -438,14 +438,21 @@
                 <input type="number" id="qsMEP" min="0" value="0" oninput="calcTotal()">
               </div>
               <div class="field-group">
-                <label>🔨 CN Khác</label>
+                <label>📅 CN Công nhật</label>
                 <input type="number" id="qsCongNhat" min="0" value="0" oninput="calcTotal()">
               </div>
+            </div>
+            <div class="form-row">
+              <div class="field-group">
+                <label>🔨 CN Khác</label>
+                <input type="number" id="qsKhac" min="0" value="0" oninput="calcTotal()">
+              </div>
+              <div class="field-group"></div>
             </div>
 
             <!-- Total -->
             <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-top:8px">
-              <span style="font-size:13px;color:var(--text2);font-weight:500">Tổng CN (KC + HT + MEP + CN khác)</span>
+              <span style="font-size:13px;color:var(--text2);font-weight:500">Tổng CN (KC + HT + MEP + Công nhật + Khác)</span>
               <span id="qsTotal" style="font-size:28px;font-weight:700;font-family:monospace;color:var(--accent)">0</span>
             </div>
           </div>
@@ -1569,11 +1576,12 @@ async function initQuanSo() {
 }
 
 function calcTotal() {
-  const kc  = parseInt(document.getElementById('qsKetCau').value)||0;
-  const ht  = parseInt(document.getElementById('qsHoanThien').value)||0;
-  const mep = parseInt(document.getElementById('qsMEP').value)||0;
-  const cn  = parseInt(document.getElementById('qsCongNhat').value)||0;
-  document.getElementById('qsTotal').textContent = kc + ht + mep + cn;
+  const kc   = parseInt(document.getElementById('qsKetCau').value)||0;
+  const ht   = parseInt(document.getElementById('qsHoanThien').value)||0;
+  const mep  = parseInt(document.getElementById('qsMEP').value)||0;
+  const cn   = parseInt(document.getElementById('qsCongNhat').value)||0;
+  const khac = parseInt(document.getElementById('qsKhac').value)||0;
+  document.getElementById('qsTotal').textContent = kc + ht + mep + cn + khac;
 }
 
 async function onQsDuAnChange() {
@@ -1660,13 +1668,14 @@ async function checkExistingReport() {
       document.getElementById('qsHoanThien').value = rows[0].qty_hoanthien || 0;
       document.getElementById('qsMEP').value       = rows[0].qty_mep       || 0;
       document.getElementById('qsCongNhat').value  = rows[0].qty_congnhat  || 0;
+      document.getElementById('qsKhac').value      = rows[0].qty_khac      || 0;
       document.getElementById('qsBCH').value       = rows[0].qty_bch       || 0;
       document.getElementById('qsNote').value      = rows[0].note          || '';
       calcTotal();
     } else {
       warn.style.display = 'none';
       // Reset fields
-      ['qsKetCau','qsHoanThien','qsMEP','qsCongNhat'].forEach(id => document.getElementById(id).value=0);
+      ['qsKetCau','qsHoanThien','qsMEP','qsCongNhat','qsKhac'].forEach(id => document.getElementById(id).value=0);
       document.getElementById('qsNote').value = '';
       calcTotal();
     }
@@ -1682,12 +1691,13 @@ async function submitQuanSo() {
   const ht    = parseInt(document.getElementById('qsHoanThien').value)||0;
   const mep   = parseInt(document.getElementById('qsMEP').value)||0;
   const cn    = parseInt(document.getElementById('qsCongNhat').value)||0;
+  const khac  = parseInt(document.getElementById('qsKhac').value)||0;
   const bch   = parseInt(document.getElementById('qsBCH').value)||0;
   const note  = document.getElementById('qsNote').value.trim();
 
   if (!projectIdA) { showToast('⚠️ Chọn dự án trước'); return; }
   if (!ngay)       { showToast('⚠️ Chọn ngày báo cáo'); return; }
-  if (kc+ht+mep+cn === 0) {
+  if (kc+ht+mep+cn+khac === 0) {
     if (!confirm('Tổng nhân công = 0. Bạn có chắc muốn lưu?')) return;
   }
 
@@ -1713,6 +1723,7 @@ async function submitQuanSo() {
         qty_hoanthien: ht,
         qty_mep:       mep,
         qty_congnhat:  cn,
+        qty_khac:      khac,
         qty_bch:       bch,
         reported_by:   state.currentUser.email || '',
         note:          note
@@ -1751,6 +1762,7 @@ async function loadQuanSoHistory() {
         <th style="text-align:center">KC</th>
         <th style="text-align:center">HT</th>
         <th style="text-align:center">MEP</th>
+        <th style="text-align:center">CN nhật</th>
         <th style="text-align:center">CN khác</th>
         <th style="text-align:center;color:var(--accent)">Tổng</th>
         <th style="text-align:center">BCH</th>
@@ -1766,6 +1778,7 @@ async function loadQuanSoHistory() {
           <td style="text-align:center">${r.qty_hoanthien||0}</td>
           <td style="text-align:center">${r.qty_mep||0}</td>
           <td style="text-align:center">${r.qty_congnhat||0}</td>
+          <td style="text-align:center">${r.qty_khac||0}</td>
           <td style="text-align:center;font-weight:700;color:var(--accent)">${r.qty_total||0}</td>
           <td style="text-align:center">${r.qty_bch||0}</td>
           <td style="font-size:12px;color:var(--text3)">${(r.reported_by||'').split('@')[0]}</td>
