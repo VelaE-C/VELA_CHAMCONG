@@ -1079,40 +1079,48 @@ function renderUserListData(users) {
     return;
   }
   const roleMap = {superadmin:'🔑 Super Admin',site_admin:'🛡 Admin CT',employee:'👷 Nhân viên'};
-  const sCols = [
-    ['employee_code','Mã NV'],['full_name','Họ tên'],['email','Email'],
-    ['position','Chức vụ'],['project_id','Dự án'],['role','Quyền'],['','']
-  ];
-  const thStyle = 'cursor:pointer;user-select:none;white-space:nowrap';
-  const arrow = col => col===userSortCol ? (userSortDir===1?' ↑':' ↓') : ' ↕';
-  const headers = sCols.map(([col,label])=>
-    col ? `<th style="${thStyle}" onclick="sortUserBy('${col}')">${label}${arrow(col)}</th>`
-        : '<th></th>'
-  ).join('');
-  el.innerHTML = `<div class="att-table-wrap"><table>
-    <thead><tr>${headers}</tr></thead>
-    <tbody>${users.map((u,i) => {
+  const roleColor = {superadmin:'var(--accent)',site_admin:'var(--blue)',employee:'var(--green)'};
+
+  // Card-based layout — no horizontal scroll, fixed columns
+  el.innerHTML = `<div style="display:grid;gap:8px">
+    <!-- Header row -->
+    <div style="display:grid;grid-template-columns:80px 1fr 120px 140px 100px 80px;gap:8px;padding:6px 12px;
+      font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;
+      border-bottom:1px solid var(--border)">
+      <div style="cursor:pointer" onclick="sortUserBy('employee_code')">Mã NV ${userSortCol==='employee_code'?(userSortDir===1?'↑':'↓'):'↕'}</div>
+      <div style="cursor:pointer" onclick="sortUserBy('full_name')">Họ tên ${userSortCol==='full_name'?(userSortDir===1?'↑':'↓'):'↕'}</div>
+      <div style="cursor:pointer" onclick="sortUserBy('position')">Chức vụ ${userSortCol==='position'?(userSortDir===1?'↑':'↓'):'↕'}</div>
+      <div>Dự án</div>
+      <div style="cursor:pointer" onclick="sortUserBy('role')">Quyền ${userSortCol==='role'?(userSortDir===1?'↑':'↓'):'↕'}</div>
+      <div></div>
+    </div>
+    ${users.map((u,i) => {
       const proj = state.projects.find(p=>p.id===u.project_id);
-      const rowBg = i%2===0?'':'background:rgba(255,255,255,.02)';
-      return `<tr style="${rowBg}">
-        <td style="font-family:monospace;color:var(--accent)">${u.employee_code||'—'}</td>
-        <td style="color:var(--text);font-weight:500">${u.full_name}</td>
-        <td style="font-size:12px">${u.email||'—'}</td>
-        <td>${u.position||'—'}</td>
-        <td>${
-          u.project_scope==='all' ? '<span style="color:var(--blue);font-size:12px">🌐 Tất cả</span>' :
-          u.project_scope==='multi' ? `<span style="color:var(--accent);font-size:12px">🗂 Đa dự án (${(u.allowed_projects||[]).length})</span>` :
-          (proj?proj.code:'—')
-        }</td>
-        <td><span class="badge badge-present">${roleMap[u.role]||u.role}</span></td>
-        <td style="display:flex;gap:6px">
-          <button class="btn-edit-sm" onclick="openEditUserModal('${u.id}')">✏️</button>
-          <button class="btn-edit-sm" onclick="openHRDocs('${u.id}','${u.full_name}')" style="color:var(--blue);border-color:rgba(74,158,255,.3)" title="Hồ sơ PDF">📄</button>
-          <button class="btn-icon-sm" onclick="deactivateUser('${u.id}','${u.full_name}')">🗑</button>
-        </td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table></div>`;
+      const projLabel = u.project_scope==='all'
+        ? '<span style="color:var(--blue);font-size:12px">🌐 Tất cả</span>'
+        : u.project_scope==='multi'
+          ? `<span style="color:var(--accent);font-size:12px">🗂 ${(u.allowed_projects||[]).length} dự án</span>`
+          : `<span style="font-size:12px">${proj?proj.code:'—'}</span>`;
+      const bg = i%2===0?'transparent':'rgba(255,255,255,.02)';
+      return `<div style="display:grid;grid-template-columns:80px 1fr 120px 140px 100px 80px;gap:8px;
+        padding:10px 12px;background:${bg};border-radius:8px;align-items:center">
+        <div style="font-family:monospace;font-size:12px;color:var(--accent);font-weight:600">${u.employee_code||'—'}</div>
+        <div style="font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+          title="${u.full_name}">${u.full_name}</div>
+        <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.position||'—'}</div>
+        <div>${projLabel}</div>
+        <div><span style="font-size:11px;font-weight:600;color:${roleColor[u.role]||'var(--text2)'}">${roleMap[u.role]||u.role}</span></div>
+        <div style="display:flex;gap:4px;justify-content:flex-end">
+          <button title="Chỉnh sửa & Hồ sơ" onclick="openEditUserModal('${u.id}')"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+                   width:28px;height:28px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center">✏️</button>
+          <button title="Vô hiệu hóa" onclick="deactivateUser('${u.id}','${u.full_name}')"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+                   width:28px;height:28px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center">🗑</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 // ── ADD USER FORM TOGGLE ──
