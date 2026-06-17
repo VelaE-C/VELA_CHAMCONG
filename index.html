@@ -778,11 +778,16 @@ async function getSignedUrl(filePath) {
       'Authorization': `Bearer ${state.session?.access_token || SUPABASE_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ expiresIn: 300 }) // 5 phút
+    body: JSON.stringify({ expiresIn: 300 })
   });
   if (!res.ok) throw new Error('Không tạo được link xem file');
   const data = await res.json();
-  return `${STORAGE_URL}${data.signedURL}`;
+  // Handle both Supabase response formats
+  const signedPath = data.signedURL || data.signedUrl || data.signed_url || '';
+  if (!signedPath) throw new Error('Link không hợp lệ');
+  // If already full URL, return as-is; else prepend storage URL
+  if (signedPath.startsWith('http')) return signedPath;
+  return `${STORAGE_URL}${signedPath}`;
 }
 
 async function deleteHRDoc(docId, filePath) {
@@ -1368,8 +1373,15 @@ async function saveUser() {
       await sbFetch(`users?id=eq.${editId}`, { method:'PATCH', body: JSON.stringify(body) });
       showToast('✅ Đã cập nhật '+body.full_name);
     } else {
-      await sbFetch('users', { method:'POST', body: JSON.stringify(body) });
-      showToast('✅ Đã thêm '+body.full_name+' — đăng nhập bằng Gmail là vào được');
+      const created = await sbFetch('users', { method:'POST', body: JSON.stringify(body) });
+      showToast('✅ Đã thêm '+body.full_name);
+      cancelEditUser();
+      await loadUsers();
+      // Tự mở modal để upload PDF ngay
+      if (created && created[0]?.id) {
+        setTimeout(() => openEditUserModal(created[0].id), 400);
+      }
+      return;
     }
     cancelEditUser();
     await loadUsers();
@@ -2574,11 +2586,20 @@ async function loadHRDocs(userId) {
 
 async function viewDoc(filePath) {
   try {
-    showToast('⏳ Đang tạo link xem file...');
+    showToast('⏳ Đang tạo link...');
     const url = await getSignedUrl(filePath);
-    window.open(url, '_blank');
+    // Try window.open first, fallback to anchor click
+    const w = window.open(url, '_blank');
+    if (!w) {
+      // Popup blocked - use anchor
+      const a = document.createElement('a');
+      a.href = url; a.target = '_blank'; a.rel = 'noopener';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+    }
   } catch(e) {
     showToast('❌ ' + e.message);
+    console.error('viewDoc error:', e);
   }
 }
 
