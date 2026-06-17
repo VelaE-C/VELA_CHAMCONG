@@ -598,6 +598,79 @@ async function sb2Fetch(path, options = {}) {
   const t = await res.text(); return t ? JSON.parse(t) : [];
 }
 
+// ── SUPABASE STORAGE (HR Documents) ──
+const STORAGE_URL = `${SUPABASE_URL}/storage/v1`;
+
+async function uploadHRDoc(userId, file, docType, note) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'pdf') throw new Error('Chỉ chấp nhận file PDF');
+  if (file.size > 50 * 1024 * 1024) throw new Error('File quá lớn (tối đa 50MB)');
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const filePath = `${userId}/${Date.now()}_${safeName}`;
+
+  // Upload file
+  const uploadRes = await fetch(`${STORAGE_URL}/object/hr-documents/${filePath}`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${state.session?.access_token || SUPABASE_KEY}`,
+      'Content-Type': 'application/pdf',
+      'x-upsert': 'false'
+    },
+    body: file
+  });
+
+  if (!uploadRes.ok) {
+    const err = await uploadRes.json().catch(() => ({}));
+    throw new Error(err.message || `Upload lỗi HTTP ${uploadRes.status}`);
+  }
+
+  // Save metadata to DB
+  await sbFetch('hr_documents', {
+    method: 'POST',
+    body: JSON.stringify({
+      user_id: userId,
+      file_name: file.name,
+      file_path: filePath,
+      file_size: file.size,
+      doc_type: docType,
+      note: note || '',
+      uploaded_by: state.currentUser.id
+    })
+  });
+
+  return filePath;
+}
+
+async function getSignedUrl(filePath) {
+  const res = await fetch(`${STORAGE_URL}/object/sign/hr-documents/${filePath}`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${state.session?.access_token || SUPABASE_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ expiresIn: 300 }) // 5 phút
+  });
+  if (!res.ok) throw new Error('Không tạo được link xem file');
+  const data = await res.json();
+  return `${STORAGE_URL}${data.signedURL}`;
+}
+
+async function deleteHRDoc(docId, filePath) {
+  // Delete from storage
+  await fetch(`${STORAGE_URL}/object/hr-documents/${filePath}`, {
+    method: 'DELETE',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${state.session?.access_token || SUPABASE_KEY}`
+    }
+  });
+  // Delete metadata
+  await sbFetch(`hr_documents?id=eq.${docId}`, { method: 'DELETE' });
+}
+
 const GOOGLE_CLIENT_ID = '775858800222-r25d91n7qa5454aqhb2ni6q77kds2hns.apps.googleusercontent.com';
 const APP_URL = 'https://velae-c.github.io/VELA_CHAMCONG/index.html';
 
@@ -902,6 +975,7 @@ function renderUserListData(users) {
         <td><span class="badge badge-present">${roleMap[u.role]||u.role}</span></td>
         <td style="display:flex;gap:6px">
           <button class="btn-edit-sm" onclick="editUser('${u.id}')">✏️</button>
+          <button class="btn-edit-sm" onclick="openHRDocs('${u.id}','${u.full_name}')" style="color:var(--blue);border-color:rgba(74,158,255,.3)" title="Hồ sơ PDF">📄</button>
           <button class="btn-icon-sm" onclick="deactivateUser('${u.id}','${u.full_name}')">🗑</button>
         </td>
       </tr>`;
@@ -2067,6 +2141,148 @@ async function loadAdjHistory() {
     </table></div>`;
   } catch(e) {
     el.innerHTML = '<div class="empty-state">❌ ' + e.message + '</div>';
+  }
+}
+
+// ── HR DOCUMENTS ──
+let currentHRUserId = null;
+
+const DOC_TYPE_LABEL = {
+  contract: '📋 Hợp đồng lao động',
+  id_card: '🪪 CCCD / CMND',
+  certificate: '🎓 Bằng cấp / Chứng chỉ',
+  health: '🏥 Khám sức khỏe',
+  other: '📄 Khác'
+};
+
+function openHRDocs(userId, userName) {
+  currentHRUserId = userId;
+  document.getElementById('hrDocSection').style.display = 'block';
+  document.getElementById('hrDocUserName').textContent = `👤 ${userName}`;
+  document.getElementById('hrDocSection').scrollIntoView({ behavior: 'smooth' });
+  clearDocForm();
+  loadHRDocs(userId);
+}
+
+function closeHRDocs() {
+  document.getElementById('hrDocSection').style.display = 'none';
+  currentHRUserId = null;
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) showFileInfo(file);
+}
+
+function handleFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = 'var(--border)';
+  document.getElementById('dropZone').style.background = '';
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    document.getElementById('docFile').files = e.dataTransfer.files;
+    showFileInfo(file);
+  }
+}
+
+function showFileInfo(file) {
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    showToast('⚠️ Chỉ chấp nhận file PDF');
+    return;
+  }
+  const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+  const info = document.getElementById('docFileInfo');
+  info.style.display = 'block';
+  info.innerHTML = `✅ <strong>${file.name}</strong> — ${sizeMB} MB`;
+}
+
+async function uploadDoc() {
+  if (!currentHRUserId) return;
+  const file = document.getElementById('docFile').files[0];
+  if (!file) { showToast('⚠️ Chọn file PDF trước'); return; }
+  const docType = document.getElementById('docType').value;
+  const note = document.getElementById('docNote').value.trim();
+
+  const btn = document.getElementById('docUploadBtn');
+  btn.disabled = true; btn.textContent = '⏳ Đang tải lên...';
+
+  try {
+    await uploadHRDoc(currentHRUserId, file, docType, note);
+    showToast('✅ Đã tải lên thành công');
+    clearDocForm();
+    await loadHRDocs(currentHRUserId);
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '⬆️ Tải lên';
+  }
+}
+
+function clearDocForm() {
+  document.getElementById('docFile').value = '';
+  document.getElementById('docNote').value = '';
+  document.getElementById('docFileInfo').style.display = 'none';
+  document.getElementById('docType').value = 'contract';
+}
+
+async function loadHRDocs(userId) {
+  const el = document.getElementById('docList');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span> Đang tải...</div>';
+  try {
+    const docs = await sbFetch(`hr_documents?user_id=eq.${userId}&order=created_at.desc`);
+    if (!docs.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div>Chưa có hồ sơ nào</div>';
+      return;
+    }
+    el.innerHTML = `<div class="att-table-wrap"><table>
+      <thead><tr>
+        <th>Loại hồ sơ</th><th>Tên file</th><th>Dung lượng</th>
+        <th>Ghi chú</th><th>Ngày tải</th><th></th>
+      </tr></thead>
+      <tbody>${docs.map((d,i) => {
+        const sizeMB = d.file_size ? (d.file_size/1024/1024).toFixed(2)+' MB' : '—';
+        const date = new Date(d.created_at);
+        const dateStr = `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
+        const bg = i%2===0?'':'background:rgba(255,255,255,.02)';
+        return `<tr style="${bg}">
+          <td><span style="font-size:12px">${DOC_TYPE_LABEL[d.doc_type]||d.doc_type}</span></td>
+          <td style="font-size:13px;color:var(--text);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="${d.file_name}">${d.file_name}</td>
+          <td style="font-size:12px;color:var(--text3)">${sizeMB}</td>
+          <td style="font-size:12px;color:var(--text2)">${d.note||'—'}</td>
+          <td style="font-size:12px;color:var(--text3);white-space:nowrap">${dateStr}</td>
+          <td style="display:flex;gap:6px">
+            <button class="btn-edit-sm" onclick="viewDoc('${d.file_path}')" title="Xem PDF">👁</button>
+            <button class="btn-icon-sm" onclick="deleteDoc('${d.id}','${d.file_path}','${d.file_name.replace(/'/g,'')}')" title="Xóa">🗑</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  } catch(e) {
+    el.innerHTML = '<div class="empty-state">❌ ' + e.message + '</div>';
+  }
+}
+
+async function viewDoc(filePath) {
+  try {
+    showToast('⏳ Đang tạo link xem file...');
+    const url = await getSignedUrl(filePath);
+    window.open(url, '_blank');
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  }
+}
+
+async function deleteDoc(docId, filePath, fileName) {
+  if (!confirm(`Xóa file "${fileName}"?
+
+Hành động này không thể hoàn tác.`)) return;
+  try {
+    await deleteHRDoc(docId, filePath);
+    showToast('✅ Đã xóa file');
+    await loadHRDocs(currentHRUserId);
+  } catch(e) {
+    showToast('❌ ' + e.message);
   }
 }
 
