@@ -314,8 +314,15 @@
 
     <!-- HR -->
     <div class="tab-pane" id="tab-hrprofile">
-      <div class="card">
-        <div class="card-title">Thêm nhân sự mới</div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;cursor:pointer"
+          onclick="toggleAddUserForm()" id="addUserToggle">
+          <div class="card-title" style="margin:0">👤 Thêm nhân sự mới</div>
+          <button style="background:var(--accent);border:none;border-radius:8px;padding:7px 16px;color:var(--bg);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer"
+            id="addUserToggleBtn">+ Thêm mới</button>
+        </div>
+        <div id="addUserFormBody" style="display:none;padding:0 24px 24px;border-top:1px solid var(--border)">
+        <div style="height:20px"></div>
         <div class="admin-form">
           <div class="form-row">
             <div class="field-group"><label>Họ tên</label><input type="text" id="hrName" placeholder="Nguyễn Văn A"></div>
@@ -576,6 +583,126 @@
 </div>
 
 <!-- EDIT PROJECT MODAL (inline handled) -->
+
+<!-- EDIT USER MODAL -->
+<div id="editUserModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;overflow-y:auto;padding:20px">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:560px;margin:40px auto;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--text)">✏️ Chỉnh sửa nhân sự</div>
+        <div id="editModalSubtitle" style="font-size:13px;color:var(--accent);margin-top:4px"></div>
+      </div>
+      <button onclick="closeEditUserModal()"
+        style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;width:32px;height:32px;color:var(--text3);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+
+    <div class="admin-form">
+      <div class="form-row">
+        <div class="field-group"><label>Họ tên</label><input type="text" id="editName" placeholder="Nguyễn Văn A"></div>
+        <div class="field-group"><label>Mã nhân viên</label><input type="text" id="editCode" placeholder="VL-001"></div>
+      </div>
+      <div class="form-row">
+        <div class="field-group"><label>Email</label><input type="email" id="editEmail" placeholder="nva@gmail.com"></div>
+        <div class="field-group"><label>Số điện thoại</label><input type="text" id="editPhone" placeholder="0901234567"></div>
+      </div>
+      <div class="form-row">
+        <div class="field-group"><label>Chức vụ</label><input type="text" id="editPosition" placeholder="Kỹ sư công trường"></div>
+        <div class="field-group"><label>Phân quyền</label>
+          <select id="editRole">
+            <option value="employee">👷 Nhân viên</option>
+            <option value="site_admin">🛡 Admin công trình</option>
+            <option value="superadmin">🔑 Super Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field-group"><label>Phạm vi dự án</label>
+          <select id="editScope" onchange="onEditScopeChange()">
+            <option value="fixed">📍 Cố định — 1 dự án</option>
+            <option value="multi">🗂 Đa dự án</option>
+            <option value="all">🌐 Roaming — tất cả</option>
+          </select>
+        </div>
+        <div class="field-group"><label>Ngày vào làm</label><input type="date" id="editJoinDate"></div>
+      </div>
+      <div class="field-group" id="editFixedProjectRow">
+        <label>Dự án cố định</label>
+        <select id="editProject"><option value="">-- Chọn dự án --</option></select>
+      </div>
+      <div class="field-group" id="editMultiProjectRow" style="display:none">
+        <label>Danh sách dự án (giữ Ctrl để chọn nhiều)</label>
+        <select id="editAllowedProjects" multiple style="min-height:100px"></select>
+      </div>
+
+      <div style="background:rgba(232,85,85,.06);border:1px solid rgba(232,85,85,.2);border-radius:10px;padding:14px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--red)">⚠️ Vô hiệu hóa tài khoản</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">Nhân viên sẽ không đăng nhập được</div>
+        </div>
+        <button onclick="confirmDeactivate()" id="deactivateBtn"
+          style="background:rgba(232,85,85,.1);border:1px solid rgba(232,85,85,.3);border-radius:8px;padding:7px 14px;color:var(--red);font-family:inherit;font-size:13px;cursor:pointer">
+          Vô hiệu hóa
+        </button>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn-primary" style="flex:1" onclick="saveEditUser()">💾 Lưu thay đổi</button>
+        <button class="btn-secondary" onclick="closeEditUserModal()">Hủy</button>
+      </div>
+
+      <!-- PDF DOCUMENTS SECTION -->
+      <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:20px">
+        <div style="font-size:13px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:16px">
+          📄 Hồ sơ PDF
+        </div>
+
+        <!-- Upload new PDF -->
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px">
+          <div class="form-row" style="margin-bottom:10px">
+            <div class="field-group" style="margin-bottom:0">
+              <label>Loại hồ sơ</label>
+              <select id="modalDocType">
+                <option value="contract">📋 Hợp đồng lao động</option>
+                <option value="id_card">🪪 CCCD / CMND</option>
+                <option value="certificate">🎓 Bằng cấp / Chứng chỉ</option>
+                <option value="health">🏥 Khám sức khỏe</option>
+                <option value="other">📄 Khác</option>
+              </select>
+            </div>
+            <div class="field-group" style="margin-bottom:0">
+              <label>Ghi chú</label>
+              <input type="text" id="modalDocNote" placeholder="VD: HĐ thử việc 2025">
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px">
+            <label for="modalDocFile"
+              style="flex:1;background:var(--bg2);border:1px dashed var(--border);border-radius:8px;padding:10px 14px;
+                     cursor:pointer;font-size:13px;color:var(--text3);text-align:center;transition:all .2s"
+              onmouseover="this.style.borderColor='var(--accent)'"
+              onmouseout="this.style.borderColor='var(--border)'">
+              📎 Chọn file PDF
+            </label>
+            <input type="file" id="modalDocFile" accept=".pdf" style="display:none" onchange="onModalFileSelect(event)">
+            <button onclick="uploadModalDoc()"
+              style="background:var(--accent);border:none;border-radius:8px;padding:10px 18px;color:var(--bg);
+                     font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap"
+              id="modalUploadBtn">⬆️ Tải lên</button>
+          </div>
+          <div id="modalFileInfo" style="display:none;margin-top:8px;font-size:12px;color:var(--green)"></div>
+        </div>
+
+        <!-- PDF list -->
+        <div id="modalDocList">
+          <div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">
+            <span class="spinner"></span> Đang tải hồ sơ...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -974,13 +1101,195 @@ function renderUserListData(users) {
         }</td>
         <td><span class="badge badge-present">${roleMap[u.role]||u.role}</span></td>
         <td style="display:flex;gap:6px">
-          <button class="btn-edit-sm" onclick="editUser('${u.id}')">✏️</button>
+          <button class="btn-edit-sm" onclick="openEditUserModal('${u.id}')">✏️</button>
           <button class="btn-edit-sm" onclick="openHRDocs('${u.id}','${u.full_name}')" style="color:var(--blue);border-color:rgba(74,158,255,.3)" title="Hồ sơ PDF">📄</button>
           <button class="btn-icon-sm" onclick="deactivateUser('${u.id}','${u.full_name}')">🗑</button>
         </td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
+}
+
+// ── ADD USER FORM TOGGLE ──
+function toggleAddUserForm() {
+  const body = document.getElementById('addUserFormBody');
+  const btn = document.getElementById('addUserToggleBtn');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  btn.textContent = isOpen ? '+ Thêm mới' : '− Đóng';
+  btn.style.background = isOpen ? 'var(--accent)' : 'var(--bg3)';
+  btn.style.color = isOpen ? 'var(--bg)' : 'var(--text2)';
+}
+
+// ── EDIT USER MODAL ──
+function openEditUserModal(userId) {
+  const u = state.users.find(x => x.id === userId);
+  if (!u) return;
+
+  document.getElementById('editModalSubtitle').textContent = `${u.full_name} — ${u.employee_code || u.email}`;
+  document.getElementById('editName').value = u.full_name || '';
+  document.getElementById('editCode').value = u.employee_code || '';
+  document.getElementById('editEmail').value = u.email || '';
+  document.getElementById('editPhone').value = u.phone || '';
+  document.getElementById('editPosition').value = u.position || '';
+  document.getElementById('editRole').value = u.role || 'employee';
+  document.getElementById('editScope').value = u.project_scope || 'fixed';
+  document.getElementById('editJoinDate').value = u.join_date || '';
+
+  // Populate project dropdowns
+  const projSel = document.getElementById('editProject');
+  projSel.innerHTML = '<option value="">-- Chọn dự án --</option>';
+  const multiSel = document.getElementById('editAllowedProjects');
+  multiSel.innerHTML = '';
+  state.projects.forEach(p => {
+    projSel.innerHTML += `<option value="${p.id}">${p.code} — ${p.name}</option>`;
+    const opt = document.createElement('option');
+    opt.value = p.id; opt.textContent = `${p.code} — ${p.name}`;
+    if (u.allowed_projects?.includes(p.id)) opt.selected = true;
+    multiSel.appendChild(opt);
+  });
+  projSel.value = u.project_id || '';
+
+  onEditScopeChange();
+
+  // Store editing user id
+  document.getElementById('editUserModal').dataset.userId = userId;
+  document.getElementById('deactivateBtn').textContent = u.is_active ? 'Vô hiệu hóa' : '✅ Kích hoạt lại';
+
+  document.getElementById('editUserModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  // Load PDF docs
+  loadModalDocs(userId);
+}
+
+function closeEditUserModal() {
+  document.getElementById('editUserModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function onEditScopeChange() {
+  const scope = document.getElementById('editScope').value;
+  document.getElementById('editFixedProjectRow').style.display = scope === 'fixed' ? 'block' : 'none';
+  document.getElementById('editMultiProjectRow').style.display = scope === 'multi' ? 'block' : 'none';
+}
+
+async function saveEditUser() {
+  const userId = document.getElementById('editUserModal').dataset.userId;
+  const scope = document.getElementById('editScope').value;
+  const multiSel = document.getElementById('editAllowedProjects');
+  const allowedProjects = scope === 'multi'
+    ? Array.from(multiSel.selectedOptions).map(o => o.value)
+    : null;
+
+  const body = {
+    full_name: document.getElementById('editName').value.trim(),
+    employee_code: document.getElementById('editCode').value.trim() || null,
+    email: document.getElementById('editEmail').value.trim(),
+    phone: document.getElementById('editPhone').value.trim() || null,
+    position: document.getElementById('editPosition').value.trim() || null,
+    role: document.getElementById('editRole').value,
+    project_scope: scope,
+    project_id: scope === 'fixed' ? (document.getElementById('editProject').value || null) : null,
+    allowed_projects: allowedProjects,
+    join_date: document.getElementById('editJoinDate').value || null
+  };
+
+  if (!body.full_name) { showToast('⚠️ Cần có họ tên'); return; }
+
+  try {
+    await sbFetch(`users?id=eq.${userId}`, { method: 'PATCH', body: JSON.stringify(body) });
+    showToast('✅ Đã cập nhật ' + body.full_name);
+    closeEditUserModal();
+    await loadUsers();
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+function onModalFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    showToast('⚠️ Chỉ chấp nhận file PDF'); return;
+  }
+  const sizeMB = (file.size/1024/1024).toFixed(2);
+  const info = document.getElementById('modalFileInfo');
+  info.style.display = 'block';
+  info.innerHTML = `✅ <strong>${file.name}</strong> — ${sizeMB} MB`;
+}
+
+async function uploadModalDoc() {
+  const userId = document.getElementById('editUserModal').dataset.userId;
+  if (!userId) return;
+  const file = document.getElementById('modalDocFile').files[0];
+  if (!file) { showToast('⚠️ Chọn file PDF trước'); return; }
+  const docType = document.getElementById('modalDocType').value;
+  const note = document.getElementById('modalDocNote').value.trim();
+  const btn = document.getElementById('modalUploadBtn');
+  btn.disabled = true; btn.textContent = '⏳ Đang tải...';
+  try {
+    await uploadHRDoc(userId, file, docType, note);
+    showToast('✅ Đã tải lên thành công');
+    document.getElementById('modalDocFile').value = '';
+    document.getElementById('modalDocNote').value = '';
+    document.getElementById('modalFileInfo').style.display = 'none';
+    await loadModalDocs(userId);
+  } catch(e) { showToast('❌ ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '⬆️ Tải lên'; }
+}
+
+async function loadModalDocs(userId) {
+  const el = document.getElementById('modalDocList'); if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text3);font-size:13px"><span class="spinner"></span> Đang tải...</div>';
+  try {
+    const docs = await sbFetch(`hr_documents?user_id=eq.${userId}&order=created_at.desc`);
+    if (!docs.length) {
+      el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">📂 Chưa có hồ sơ nào</div>';
+      return;
+    }
+    const DOC_LABEL = { contract:'📋 HĐ lao động', id_card:'🪪 CCCD', certificate:'🎓 Bằng cấp', health:'🏥 Sức khỏe', other:'📄 Khác' };
+    el.innerHTML = docs.map(d => {
+      const sizeMB = d.file_size ? (d.file_size/1024/1024).toFixed(1)+'MB' : '';
+      const date = new Date(d.created_at);
+      const dateStr = `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
+        <div style="font-size:11px;color:var(--accent);background:rgba(245,166,35,.1);border-radius:5px;padding:3px 8px;white-space:nowrap">${DOC_LABEL[d.doc_type]||d.doc_type}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${d.file_name}">${d.file_name}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${d.note||''} ${sizeMB} · ${dateStr}</div>
+        </div>
+        <button onclick="viewDoc('${d.file_path}')"
+          style="background:rgba(74,158,255,.1);border:1px solid rgba(74,158,255,.2);border-radius:6px;padding:5px 10px;color:var(--blue);font-size:12px;cursor:pointer">👁 Xem</button>
+        <button onclick="deleteModalDoc('${d.id}','${d.file_path}','${d.file_name.replace(/'/g,'').replace(/"/g,'')}')"
+          style="background:rgba(232,85,85,.1);border:1px solid rgba(232,85,85,.2);border-radius:6px;padding:5px 10px;color:var(--red);font-size:12px;cursor:pointer">🗑</button>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);font-size:13px;padding:12px">❌ ${e.message}</div>`;
+  }
+}
+
+async function deleteModalDoc(docId, filePath, fileName) {
+  if (!confirm(`Xóa file "${fileName}"?`)) return;
+  try {
+    await deleteHRDoc(docId, filePath);
+    showToast('✅ Đã xóa file');
+    const userId = document.getElementById('editUserModal').dataset.userId;
+    await loadModalDocs(userId);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+async function confirmDeactivate() {
+  const userId = document.getElementById('editUserModal').dataset.userId;
+  const u = state.users.find(x => x.id === userId);
+  if (!u) return;
+  const newStatus = !u.is_active;
+  const action = newStatus ? 'kích hoạt lại' : 'vô hiệu hóa';
+  if (!confirm(`${action.charAt(0).toUpperCase()+action.slice(1)} tài khoản "${u.full_name}"?`)) return;
+  try {
+    await sbFetch(`users?id=eq.${userId}`, { method: 'PATCH', body: JSON.stringify({ is_active: newStatus }) });
+    showToast(`✅ Đã ${action} ${u.full_name}`);
+    closeEditUserModal();
+    await loadUsers();
+  } catch(e) { showToast('❌ ' + e.message); }
 }
 
 function onScopeChange() {
@@ -2375,6 +2684,10 @@ function showToast(msg) {
 })();
 </script>
 <script>
+document.getElementById('editUserModal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditUserModal();
+});
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js')
