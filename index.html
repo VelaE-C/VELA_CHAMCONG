@@ -663,6 +663,7 @@
             <div class="field-group" style="margin-bottom:0">
               <label>Loại hồ sơ</label>
               <select id="modalDocType">
+                <option value="cv">👤 CV Công việc</option>
                 <option value="contract">📋 Hợp đồng lao động</option>
                 <option value="id_card">🪪 CCCD / CMND</option>
                 <option value="certificate">🎓 Bằng cấp / Chứng chỉ</option>
@@ -1258,7 +1259,7 @@ async function loadModalDocs(userId) {
       el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">📂 Chưa có hồ sơ nào</div>';
       return;
     }
-    const DOC_LABEL = { contract:'📋 HĐ lao động', id_card:'🪪 CCCD', certificate:'🎓 Bằng cấp', health:'🏥 Sức khỏe', other:'📄 Khác' };
+    const DOC_LABEL = { cv:'👤 CV', contract:'📋 HĐ lao động', id_card:'🪪 CCCD', certificate:'🎓 Bằng cấp', health:'🏥 Sức khỏe', other:'📄 Khác' };
     el.innerHTML = docs.map(d => {
       const sizeMB = d.file_size ? (d.file_size/1024/1024).toFixed(1)+'MB' : '';
       const date = new Date(d.created_at);
@@ -2477,6 +2478,7 @@ async function loadAdjHistory() {
 let currentHRUserId = null;
 
 const DOC_TYPE_LABEL = {
+  cv: '👤 CV Công việc',
   contract: '📋 Hợp đồng lao động',
   id_card: '🪪 CCCD / CMND',
   certificate: '🎓 Bằng cấp / Chứng chỉ',
