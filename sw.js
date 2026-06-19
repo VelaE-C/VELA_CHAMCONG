@@ -28,8 +28,10 @@ self.addEventListener('activate', e => {
 
 // Fetch: network first, fallback to cache
 self.addEventListener('fetch', e => {
-  // Skip non-GET and Supabase API calls
+  // Skip non-GET, chrome extensions, and API calls
   if (e.request.method !== 'GET') return;
+  if (e.request.url.startsWith('chrome-extension://')) return;
+  if (e.request.url.startsWith('chrome://')) return;
   if (e.request.url.includes('supabase.co')) return;
   if (e.request.url.includes('googleapis.com')) return;
 
