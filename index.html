@@ -68,9 +68,9 @@
 
   /* CONTENT */
   .content{padding:20px;max-width:960px;margin:0 auto}
-  .tab-pane{display:none}
-  .tab-pane.active{display:block}
-  #tab-teamtable.active{display:flex}
+  .tab-pane{display:none !important}
+  .tab-pane.active{display:block !important}
+  #tab-teamtable.active{display:flex !important;flex-direction:column}
   .card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:var(--card-shadow)}
   .card-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:20px}
 
@@ -275,9 +275,9 @@
     </div>
 
 
-    <div class="tab-pane" id="tab-teamtable" style="display:flex;flex-direction:column;height:calc(100vh - 120px)">
+    <div class="tab-pane" id="tab-teamtable">
       <!-- Controls bar -->
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px;flex-shrink:0">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px 12px 0 0;padding:14px 20px;flex-shrink:0;border-bottom:none">
         <div class="month-nav" style="margin-bottom:0">
           <select id="teamProject"><option value="">-- Tất cả dự án --</option></select>
           <select id="teamMonth"></select>
@@ -287,8 +287,8 @@
         </div>
       </div>
       <!-- Table container: fills remaining height, scrolls both directions -->
-      <div id="teamTableContent" style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:auto;position:relative">
-        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3)">
+      <div id="teamTableContent" style="flex:1;min-height:0;background:var(--bg2);border:1px solid var(--border);border-radius:0 0 12px 12px;overflow:auto;position:relative">
+        <div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--text3)">
           <div style="text-align:center"><div style="font-size:36px;margin-bottom:12px">👥</div>Chọn tháng và nhấn Xem</div>
         </div>
       </div>
@@ -2698,6 +2698,15 @@ function switchTab(btn, id) {
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
+  // Full width for teamtable
+  const contentEl = document.querySelector('.content');
+  if (id === 'teamtable') {
+    contentEl.style.maxWidth = '100%';
+    contentEl.style.padding = '0';
+  } else {
+    contentEl.style.maxWidth = '';
+    contentEl.style.padding = '';
+  }
 }
 
 // ── TOAST ──
