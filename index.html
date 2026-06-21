@@ -70,6 +70,7 @@
   .content{padding:20px;max-width:960px;margin:0 auto}
   .tab-pane{display:none}
   .tab-pane.active{display:block}
+  #tab-teamtable.active{display:flex}
   .card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:var(--card-shadow)}
   .card-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:20px}
 
@@ -274,18 +275,21 @@
     </div>
 
 
-    <div class="tab-pane" id="tab-teamtable">
-      <div class="card">
-        <div class="card-title">Bảng công nhóm</div>
-        <div class="month-nav">
+    <div class="tab-pane" id="tab-teamtable" style="display:flex;flex-direction:column;height:calc(100vh - 120px)">
+      <!-- Controls bar -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px;flex-shrink:0">
+        <div class="month-nav" style="margin-bottom:0">
           <select id="teamProject"><option value="">-- Tất cả dự án --</option></select>
           <select id="teamMonth"></select>
           <select id="teamYear"></select>
           <button class="btn-load" onclick="loadTeamAttendance()">Xem</button>
           <button class="btn-export" onclick="exportTeamExcel()">⬇ Excel</button>
         </div>
-        <div id="teamTableContent" class="empty-state">
-          <div class="empty-icon">👥</div>Chọn tháng và nhấn Xem
+      </div>
+      <!-- Table container: fills remaining height, scrolls both directions -->
+      <div id="teamTableContent" style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:auto;position:relative">
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3)">
+          <div style="text-align:center"><div style="font-size:36px;margin-bottom:12px">👥</div>Chọn tháng và nhấn Xem</div>
         </div>
       </div>
     </div>
@@ -1799,43 +1803,55 @@ async function loadTeamAttendance() {
 
 function renderTeamTable(users,attByUser,dateList,el,month,year) {
   const prevMonth=month===1?12:month-1, prevYear=month===1?year-1:year;
+  const periodLabel=`Chu kỳ: 26/${String(prevMonth).padStart(2,'0')}/${prevYear} → 25/${String(month).padStart(2,'0')}/${year} — Tổng ${dateList.length} ngày`;
 
-  // Header: hiện dd/mm cho từng ngày
-  const dayHeaders=dateList.map(dt=>{
-    const label=`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
-    return `<th style="text-align:center;font-size:11px;white-space:nowrap">${label}</th>`;
+  // Sticky styles
+  const stickyName  = `position:sticky;left:0;z-index:2;background:var(--bg2);white-space:nowrap;min-width:150px;max-width:180px;`;
+  const stickyTotal = `position:sticky;left:150px;z-index:2;background:var(--bg2);min-width:56px;text-align:center;`;
+  const stickyHead  = `position:sticky;top:0;z-index:3;background:var(--bg3);`;
+  const stickyCornerName  = stickyName  + stickyHead;
+  const stickyCornerTotal = stickyTotal + stickyHead;
+
+  const dayHeaders = dateList.map(dt=>{
+    const d = dt.getDay(); // 0=Sun
+    const isWe = d===0;
+    const label = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
+    const weekday = ['CN','T2','T3','T4','T5','T6','T7'][d];
+    return `<th style="${stickyHead}text-align:center;font-size:10px;white-space:nowrap;min-width:38px;padding:4px 2px;${isWe?'color:var(--accent)':''}">
+      <div>${label}</div><div style="color:var(--text3);font-size:9px">${weekday}</div>
+    </th>`;
   }).join('');
 
-  const tableRows=users.map(u=>{
-    const att=attByUser[u.id]||{};
-    let total=0;
-    const cells=dateList.map(dt=>{
-      const dateStr=localDateStr(dt);
-      const r=att[dateStr];
+  const tableRows = users.map((u,ri)=>{
+    const att = attByUser[u.id]||{};
+    let total = 0;
+    const rowBg = ri%2===0 ? 'var(--bg2)' : 'var(--bg3)';
+    const cells = dateList.map(dt=>{
+      const dateStr = localDateStr(dt);
+      const r = att[dateStr];
       if(r?.status==='present'||r?.status==='leave') total++;
-      const cell=r?(r.status==='present'?'✅':r.status==='leave'?'🏖':'❌'):'';
-      return `<td style="text-align:center;font-size:12px">${cell}</td>`;
+      const cell = r?(r.status==='present'?'<span style="color:var(--green)">✅</span>':r.status==='leave'?'<span style="color:var(--blue)">🏖</span>':'<span style="color:var(--red)">❌</span>'):'';
+      return `<td style="text-align:center;font-size:11px;padding:4px 2px;border-bottom:1px solid var(--border)">${cell}</td>`;
     }).join('');
     return `<tr>
-      <td style="white-space:nowrap;font-weight:500;color:var(--text)">${u.full_name}</td>
-      <td style="text-align:center;font-family:monospace;color:var(--accent);font-weight:700">${total}</td>
+      <td style="${stickyName}background:${rowBg};padding:8px 12px;font-weight:500;color:var(--text);border-bottom:1px solid var(--border);overflow:hidden;text-overflow:ellipsis">${u.full_name}</td>
+      <td style="${stickyTotal}background:${rowBg};padding:8px 4px;font-family:monospace;font-weight:700;color:var(--accent);font-size:13px;border-bottom:1px solid var(--border)">${total}</td>
       ${cells}
     </tr>`;
   }).join('');
 
-  // Sub-header showing period
-  const periodLabel=`Chu kỳ: 26/${String(prevMonth).padStart(2,'0')}/${prevYear} → 25/${String(month).padStart(2,'0')}/${year}`;
-
-  el.innerHTML=`
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;font-style:italic">📅 ${periodLabel} — Tổng ${dateList.length} ngày</div>
-    <div style="overflow-x:auto"><table>
+  el.innerHTML = `
+    <div style="padding:10px 14px;font-size:11px;color:var(--text3);font-style:italic;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:4;background:var(--bg2)">
+      📅 ${periodLabel}
+    </div>
+    <table style="border-collapse:collapse;width:max-content;min-width:100%">
       <thead><tr>
-        <th style="min-width:140px">Họ tên</th>
-        <th style="text-align:center;min-width:60px">Tổng</th>
+        <th style="${stickyCornerName}padding:8px 12px;font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border)">Họ tên</th>
+        <th style="${stickyCornerTotal}padding:8px 4px;font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border)">Tổng</th>
         ${dayHeaders}
       </tr></thead>
       <tbody>${tableRows}</tbody>
-    </table></div>`;
+    </table>`;
 }
 
 // ── EXPORT EXCEL ──
