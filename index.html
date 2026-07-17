@@ -2218,8 +2218,7 @@ async function exportTeamExcel() {
         const tinStr=tin.getHours()+':'+String(tin.getMinutes()).padStart(2,'0');
         const tout=rec.check_out?new Date(rec.check_out):null;
         const toutStr=tout?tout.getHours()+':'+String(tout.getMinutes()).padStart(2,'0'):'—';
-        c.value=tinStr+'
-'+toutStr;
+        c.value=tinStr+'\n'+toutStr;
         c.fill=hFill(rec.status==='leave'?BLUE2:GREEN2);
         c.font={name:'Arial',size:8,color:{argb:'FF'+TEXT}};
         c.alignment={horizontal:'center',vertical:'middle',wrapText:true};
