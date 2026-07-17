@@ -1466,12 +1466,37 @@ async function checkTodayAttendance() {
   const today = localDateStr();
   try {
     const rows = await sbFetch(`attendance?user_id=eq.${state.currentUser.id}&check_date=eq.${today}&limit=1`);
-    if (rows.length) {
-      state.checkedInToday = true;
-      const t = new Date(rows[0].check_time);
-      document.getElementById('checkinResult').innerHTML = `✅ Đã chấm công lúc <strong>${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}</strong>`;
-      const btn = document.getElementById('checkinBtn');
-      btn.classList.add('done'); btn.querySelector('.btn-label').textContent='ĐÃ CHẤM';
+    if (!rows.length) return;
+    const rec = rows[0];
+    state.checkedInToday = true;
+    state.todayAttId = rec.id;
+
+    const tin = new Date(rec.check_time);
+    const tinStr = `${tin.getHours()}:${String(tin.getMinutes()).padStart(2,'0')}`;
+    const btn = document.getElementById('checkinBtn');
+    btn.classList.add('done');
+    btn.querySelector('.btn-label').textContent = 'ĐÃ CHECK IN';
+
+    const coSection = document.getElementById('checkoutSection');
+    const coBtn = document.getElementById('checkoutBtn');
+    const coResult = document.getElementById('checkoutResult');
+
+    if (rec.check_out) {
+      const tout = new Date(rec.check_out);
+      const toutStr = `${tout.getHours()}:${String(tout.getMinutes()).padStart(2,'0')}`;
+      document.getElementById('checkinResult').innerHTML =
+        `✅ Check in: <strong>${tinStr}</strong> &nbsp;|&nbsp; 🚪 Check out: <strong>${toutStr}</strong>`;
+      coSection.style.display = 'block';
+      coBtn.disabled = true;
+      coBtn.textContent = `✅ Đã check out lúc ${toutStr}`;
+      coBtn.style.borderColor = 'var(--green)';
+      coBtn.style.color = 'var(--green)';
+    } else {
+      document.getElementById('checkinResult').innerHTML =
+        `✅ Check in: <strong>${tinStr}</strong> &nbsp;&nbsp;<span style="color:var(--text3);font-size:12px">Chưa check out</span>`;
+      coSection.style.display = 'block';
+      coBtn.disabled = false;
+      coBtn.textContent = '🚪 CHECK OUT';
     }
   } catch(e) { console.error(e); }
 }
