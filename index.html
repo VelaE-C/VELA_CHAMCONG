@@ -2197,8 +2197,7 @@ async function exportTeamExcel() {
   dateList.forEach((dt,i)=>{
     const c=ws.getCell(4,i+3);
     const isSun = dt.getDay()===0;
-    c.value=String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'
-'+DAYS_VI2[dt.getDay()];
+    c.value=String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'\n'+DAYS_VI2[dt.getDay()];
     c.font={name:'Arial',bold:true,color:{argb:'FF'+(isSun?ORANGE:WHITE)},size:8};
     c.fill=hFill(NAVY); c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border=hBorder();
   });
