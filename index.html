@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#0f1923">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -176,6 +176,23 @@
   ::-webkit-scrollbar-track{background:var(--bg)}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
+  /* ── MOBILE ── */
+  @media(max-width:600px){
+    .topbar-title{font-size:13px}
+    .user-badge span{display:none}
+    .content{padding:12px}
+    .btn-checkin{width:150px;height:150px}
+    .time-display{font-size:40px}
+    .nav-tab{padding:10px 10px;font-size:11px}
+    .month-nav{flex-wrap:wrap;gap:6px}
+    .month-nav select{font-size:12px;padding:7px 8px}
+    .form-row{grid-template-columns:1fr}
+    .card{padding:16px}
+    .stats-grid{grid-template-columns:1fr 1fr}
+    #tab-teamtable.active{padding:8px 8px 0}
+    .topbar{padding:0 12px}
+  }
+
 </style>
 </head>
 <body>
@@ -264,24 +281,13 @@
             <button onclick="confirmManualCheckin()" style="width:100%;background:var(--green);border:none;border-radius:10px;padding:12px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">Xác nhận chấm công</button>
           </div>
           <input type="hidden" id="detectedProjectId">
-          <button class="btn-checkin" id="checkinBtn" onclick="doCheckin()">
-            <div class="btn-icon">✅</div>
-            <div class="btn-label">CHẤM CÔNG</div>
+          <button class="btn-checkin" id="checkinBtn" onclick="handleCheckinBtn()">
+            <div class="btn-icon" id="checkinBtnIcon">✅</div>
+            <div class="btn-label" id="checkinBtnLabel">CHẤM CÔNG</div>
           </button>
           <div class="checkin-result" id="checkinResult">Nhấn nút để tự động xác định vị trí và chấm công</div>
 
-          <!-- Checkout button - hidden until checked in -->
-          <div id="checkoutSection" style="display:none;margin-top:16px">
-            <button id="checkoutBtn" onclick="doCheckout()"
-              style="width:100%;background:rgba(74,158,255,.1);border:2px solid var(--blue);border-radius:12px;
-                     padding:14px;color:var(--blue);font-family:inherit;font-size:15px;font-weight:700;
-                     cursor:pointer;transition:all .2s"
-              onmouseover="this.style.background='rgba(74,158,255,.2)'"
-              onmouseout="this.style.background='rgba(74,158,255,.1)'">
-              🚪 CHECK OUT
-            </button>
-            <div id="checkoutResult" style="margin-top:10px;font-size:13px;color:var(--text3);text-align:center"></div>
-          </div>
+
         </div>
       </div>
     </div>
@@ -863,7 +869,7 @@ function localDateStr(date) {
 }
 const MONTHS_VI = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
 
-let state = { session: null, currentUser: null, projects: [], users: [], checkedInToday: false, todayAttId: null, lastAttData: null, lastTeamData: null };
+let state = { session: null, currentUser: null, projects: [], users: [], checkedInToday: false, todayAttId: null, mode: 'checkin', lastAttData: null, lastTeamData: null };
 
 // ── SUPABASE HELPERS ──
 async function sbFetch(path, options = {}) {
@@ -1470,35 +1476,39 @@ async function checkTodayAttendance() {
     const rec = rows[0];
     state.checkedInToday = true;
     state.todayAttId = rec.id;
-
     const tin = new Date(rec.check_time);
     const tinStr = `${tin.getHours()}:${String(tin.getMinutes()).padStart(2,'0')}`;
-    const btn = document.getElementById('checkinBtn');
-    btn.classList.add('done');
-    btn.querySelector('.btn-label').textContent = 'ĐÃ CHECK IN';
-
-    const coSection = document.getElementById('checkoutSection');
-    const coBtn = document.getElementById('checkoutBtn');
-    const coResult = document.getElementById('checkoutResult');
-
     if (rec.check_out) {
       const tout = new Date(rec.check_out);
       const toutStr = `${tout.getHours()}:${String(tout.getMinutes()).padStart(2,'0')}`;
-      document.getElementById('checkinResult').innerHTML =
-        `✅ Check in: <strong>${tinStr}</strong> &nbsp;|&nbsp; 🚪 Check out: <strong>${toutStr}</strong>`;
-      coSection.style.display = 'block';
-      coBtn.disabled = true;
-      coBtn.textContent = `✅ Đã check out lúc ${toutStr}`;
-      coBtn.style.borderColor = 'var(--green)';
-      coBtn.style.color = 'var(--green)';
+      setCheckedOutState(tinStr, toutStr);
     } else {
-      document.getElementById('checkinResult').innerHTML =
-        `✅ Check in: <strong>${tinStr}</strong> &nbsp;&nbsp;<span style="color:var(--text3);font-size:12px">Chưa check out</span>`;
-      coSection.style.display = 'block';
-      coBtn.disabled = false;
-      coBtn.textContent = '🚪 CHECK OUT';
+      setCheckedInState(tinStr);
     }
   } catch(e) { console.error(e); }
+}
+
+function setCheckedInState(tinStr) {
+  const btn = document.getElementById('checkinBtn');
+  // Change button to checkout style (blue)
+  btn.style.background = 'linear-gradient(135deg,#4a9eff,#2d7dd2)';
+  btn.style.boxShadow = '0 0 0 16px rgba(74,158,255,.08),0 0 0 32px rgba(74,158,255,.04)';
+  document.getElementById('checkinBtnIcon').textContent = '🚪';
+  document.getElementById('checkinBtnLabel').textContent = 'CHECK OUT';
+  document.getElementById('checkinResult').innerHTML =
+    `✅ Check in: <strong>${tinStr}</strong> &nbsp;&nbsp;<span style="color:var(--text3);font-size:12px">Chưa check out</span>`;
+  state.mode = 'checkout';
+}
+
+function setCheckedOutState(tinStr, toutStr) {
+  const btn = document.getElementById('checkinBtn');
+  btn.style.background = 'linear-gradient(135deg,var(--green),#1fa864)';
+  btn.style.boxShadow = '0 0 0 16px rgba(39,196,122,.08),0 0 0 32px rgba(39,196,122,.04)';
+  document.getElementById('checkinBtnIcon').textContent = '✅';
+  document.getElementById('checkinBtnLabel').textContent = 'CẬP NHẬT OUT';
+  document.getElementById('checkinResult').innerHTML =
+    `✅ Check in: <strong>${tinStr}</strong> &nbsp;|&nbsp; 🚪 Check out: <strong>${toutStr}</strong>`;
+  state.mode = 'checkout'; // still allow updating checkout
 }
 
 // ── DEVICE FINGERPRINT ──
@@ -1520,61 +1530,95 @@ async function getDeviceFingerprint() {
 
 // ── CHECKOUT ──
 async function doCheckout() {
-  const btn = document.getElementById('checkoutBtn');
-  const result = document.getElementById('checkoutResult');
-
-  // Get today's attendance ID
   let attId = state.todayAttId;
   if (!attId) {
     const today = localDateStr();
     const rows = await sbFetch(`attendance?user_id=eq.${state.currentUser.id}&check_date=eq.${today}&limit=1`);
-    if (!rows.length) { showToast('❌ Chưa có record check in hôm nay'); return; }
+    if (!rows.length) { showToast('❌ Chưa check in hôm nay'); return; }
     attId = rows[0].id;
     state.todayAttId = attId;
   }
 
-  if (!navigator.geolocation) {
-    // Checkout without GPS
-    await saveCheckout(attId, null, null, result, btn);
-    return;
-  }
+  const btn = document.getElementById('checkinBtn');
+  const result = document.getElementById('checkinResult');
 
-  btn.disabled = true; btn.textContent = '⏳ Đang xác định vị trí...';
+  if (!navigator.geolocation) { showToast('⚠️ Trình duyệt không hỗ trợ GPS'); return; }
+
+  btn.disabled = true;
+  document.getElementById('checkinBtnLabel').textContent = '⏳ Đang lấy GPS...';
+  document.getElementById('locDot').className = 'loc-dot checking';
+  document.getElementById('locText').textContent = 'Đang xác định vị trí checkout...';
+
   navigator.geolocation.getCurrentPosition(
     async pos => {
-      await saveCheckout(attId, pos.coords.latitude, pos.coords.longitude, result, btn);
+      const { latitude, longitude, accuracy } = pos.coords;
+      // Check geofence - same as checkin
+      const accessible = getAccessibleProjects();
+      const matches = accessible
+        .map(p => ({ ...p, dist: Math.round(calcDistance(latitude, longitude, p.lat, p.lng)) }))
+        .filter(p => p.dist <= p.radius_m)
+        .sort((a,b) => a.dist - b.dist);
+
+      if (matches.length === 0) {
+        const nearest = accessible
+          .map(p => ({ ...p, dist: Math.round(calcDistance(latitude, longitude, p.lat, p.lng)) }))
+          .sort((a,b) => a.dist - b.dist)[0];
+        document.getElementById('locDot').className = 'loc-dot fail';
+        document.getElementById('locText').textContent = 'Ngoài phạm vi dự án';
+        result.innerHTML = nearest
+          ? `❌ Không thể check out — ngoài phạm vi. Gần nhất: <strong>${nearest.name}</strong> (cách ${nearest.dist}m)`
+          : '❌ Không trong phạm vi dự án nào';
+        btn.disabled = false;
+        document.getElementById('checkinBtnLabel').textContent = 'CHECK OUT';
+        return;
+      }
+
+      // In geofence — save checkout
+      document.getElementById('locDot').className = 'loc-dot ok';
+      document.getElementById('locText').textContent = `📍 ${matches[0].name} — cách ${matches[0].dist}m | ±${Math.round(accuracy)}m`;
+      await saveCheckout(attId, latitude, longitude, matches[0].dist, result, btn);
     },
-    async () => {
-      // GPS failed - checkout anyway
-      await saveCheckout(attId, null, null, result, btn);
+    () => {
+      btn.disabled = false;
+      document.getElementById('checkinBtnLabel').textContent = 'CHECK OUT';
+      document.getElementById('locDot').className = 'loc-dot fail';
+      result.innerHTML = '❌ Không lấy được GPS';
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
 }
 
-async function saveCheckout(attId, lat, lng, result, btn) {
+async function saveCheckout(attId, lat, lng, dist, result, btn) {
   const now = new Date();
   const nowStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
   try {
+    // PATCH check_out — overwrites previous, always latest time
     await sbFetch(`attendance?id=eq.${attId}`, {
       method: 'PATCH',
       body: JSON.stringify({ check_out: now.toISOString() })
     });
-    btn.disabled = true;
-    btn.textContent = `✅ Đã check out lúc ${nowStr}`;
-    btn.style.borderColor = 'var(--green)';
-    btn.style.color = 'var(--green)';
-    result.innerHTML = `🚪 Check out: <strong>${nowStr}</strong>${lat ? ` — GPS ghi nhận` : ' — (không có GPS)'}`;
-    // Update checkin result display
-    const checkinRes = document.getElementById('checkinResult');
-    const existingText = checkinRes.innerHTML;
-    if (!existingText.includes('Check out')) {
-      checkinRes.innerHTML = existingText.replace('Chưa check out', `🚪 Check out: <strong>${nowStr}</strong>`);
-    }
-    showToast('✅ Check out thành công!');
+    // Get check_in time to display
+    const rows = await sbFetch(`attendance?id=eq.${attId}&select=check_time&limit=1`);
+    const tin = rows.length ? new Date(rows[0].check_time) : null;
+    const tinStr = tin ? `${tin.getHours()}:${String(tin.getMinutes()).padStart(2,'0')}` : '—';
+    setCheckedOutState(tinStr, nowStr);
+    result.innerHTML = `✅ Check in: <strong>${tinStr}</strong> &nbsp;|&nbsp; 🚪 Check out: <strong>${nowStr}</strong> — cách ${dist}m`;
+    showToast(`✅ Check out lúc ${nowStr} — có thể cập nhật lại nếu cần`);
   } catch(e) {
-    btn.disabled = false; btn.textContent = '🚪 CHECK OUT';
+    btn.disabled = false;
+    document.getElementById('checkinBtnLabel').textContent = 'CHECK OUT';
     showToast('❌ ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── CHECKIN/CHECKOUT DISPATCHER ──
+function handleCheckinBtn() {
+  if (state.mode === 'checkout') {
+    doCheckout();
+  } else {
+    doCheckin();
   }
 }
 
@@ -1714,18 +1758,16 @@ async function submitCheckin(projectId, latitude, longitude, dist, result, btn) 
     })});
     state.checkedInToday = true;
     if (created && created[0]) state.todayAttId = created[0].id;
-    btn.classList.add('done');
-    btn.querySelector('.btn-label').textContent = 'ĐÃ CHECK IN';
     const now = new Date();
     const proj = state.projects.find(p => p.id === projectId);
-    result.innerHTML = `✅ Check in: <strong>${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}</strong> tại ${proj?.name || ''} — cách ${dist}m`;
+    const tinStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+    result.innerHTML = `✅ Check in: <strong>${tinStr}</strong> tại ${proj?.name || ''} — cách ${dist}m`;
     showToast('✅ Check in thành công!');
     document.getElementById('myMonth').value = now.getMonth() + 1;
     document.getElementById('myYear').value = now.getFullYear();
     document.getElementById('manualProjectRow').style.display = 'none';
     document.getElementById('detectedProject').style.display = 'none';
-    // Show checkout button
-    document.getElementById('checkoutSection').style.display = 'block';
+    setCheckedInState(tinStr);
   } catch(e) {
     if (e.message.includes('unique')) { result.innerHTML = '⚠️ Đã chấm công hôm nay rồi'; state.checkedInToday = true; }
     else result.innerHTML = '❌ ' + e.message;
@@ -2013,7 +2055,7 @@ async function exportMyExcel() {
 
   const wb=new ExcelJS.Workbook();
   const ws=wb.addWorksheet('Tháng '+month+'.'+year);
-  ws.columns=[{width:12},{width:11},{width:16},{width:12},{width:14},{width:14},{width:4},{width:24},{width:4}];
+  ws.columns=[{width:12},{width:11},{width:16},{width:13},{width:13},{width:14},{width:14},{width:4},{width:20}];
 
   // R1 - Logo
   ws.mergeCells('A1:I1'); ws.getRow(1).height=36;
@@ -2046,7 +2088,7 @@ async function exportMyExcel() {
 
   // R7 - Headers
   ws.getRow(7).height=24;
-  ['Ngày','Thứ','Trạng thái','Giờ chấm','Khoảng cách','Dự án','','Ghi chú',''].forEach((h,i)=>{
+  ['Ngày','Thứ','Trạng thái','Check In','Check Out','Khoảng cách','Dự án','','Ghi chú'].forEach((h,i)=>{
     if(!h) return;
     const c=ws.getCell(7,i+1);
     c.value=h; c.font=hFont(true,WHITE,10); c.fill=hFill(NAVY);
@@ -2064,17 +2106,22 @@ async function exportMyExcel() {
     if(rec?.status==='present')present++;
     else if(rec?.status==='absent')absent++;
     else if(rec?.status==='leave')leave++;
+    const cout = rec?.check_out ? new Date(rec.check_out) : null;
     [String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0'),
      DAYS_VI[dt.getDay()],
      rec?(statusLabel[rec.status]||''):'',
      ct?ct.getHours()+':'+String(ct.getMinutes()).padStart(2,'0'):'',
+     cout?cout.getHours()+':'+String(cout.getMinutes()).padStart(2,'0'):'',
      rec?.distance_m?rec.distance_m+'m':'',
-     projRec?projRec.code:'','','',''
+     projRec?projRec.code:'','',''
     ].forEach((v,i)=>{
       const c=ws.getCell(rn,i+1);
       c.value=v; c.fill=hFill(bg); c.border=hBorder();
       c.alignment={horizontal:i===7?'left':'center',vertical:'middle'};
-      c.font=i===2&&rec?{name:'Arial',bold:true,color:{argb:'FF'+(statusColor[rec.status]||TEXT)},size:10}:hFont(false,TEXT,10);
+      if(i===2&&rec) c.font={name:'Arial',bold:true,color:{argb:'FF'+(statusColor[rec.status]||TEXT)},size:10};
+      else if(i===3&&ct) c.font={name:'Arial',bold:true,color:{argb:'FF'+GREEN},size:10};
+      else if(i===4&&cout) c.font={name:'Arial',bold:true,color:{argb:'FF4A9EFF'},size:10};
+      else c.font=hFont(false,TEXT,10);
     });
   });
 
@@ -2120,7 +2167,7 @@ async function exportTeamExcel() {
 
   const wb=new ExcelJS.Workbook();
   const ws=wb.addWorksheet('T'+month+'.'+year);
-  ws.columns=[{width:24},{width:12},...dateList.map(()=>({width:7}))];
+  ws.columns=[{width:24},{width:12},...dateList.map(()=>({width:12}))];
 
   // R1
   ws.mergeCells(1,1,1,dateList.length+2); ws.getRow(1).height=32;
@@ -2140,17 +2187,20 @@ async function exportTeamExcel() {
   ws.getRow(3).height=8;
 
   // R4 Headers
-  ws.getRow(4).height=28;
+  ws.getRow(4).height=32;
   ['Họ tên','Tổng công'].forEach((h,i)=>{
     const c=ws.getCell(4,i+1);
     c.value=h; c.font={name:'Arial',bold:true,color:{argb:'FF'+WHITE},size:10};
     c.fill=hFill(NAVY); c.alignment={horizontal:'center',vertical:'middle'}; c.border=hBorder();
   });
+  const DAYS_VI2=['CN','T2','T3','T4','T5','T6','T7'];
   dateList.forEach((dt,i)=>{
     const c=ws.getCell(4,i+3);
-    c.value=String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0');
-    c.font={name:'Arial',bold:true,color:{argb:'FF'+WHITE},size:8};
-    c.fill=hFill(NAVY); c.alignment={horizontal:'center',vertical:'middle'}; c.border=hBorder();
+    const isSun = dt.getDay()===0;
+    c.value=String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'
+'+DAYS_VI2[dt.getDay()];
+    c.font={name:'Arial',bold:true,color:{argb:'FF'+(isSun?ORANGE:WHITE)},size:8};
+    c.fill=hFill(NAVY); c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border=hBorder();
   });
 
   // Data
@@ -2159,14 +2209,30 @@ async function exportTeamExcel() {
     ws.getRow(rn).height=22;
     const att=attByUser[u.id]||{}; let total=0;
     Object.assign(ws.getCell(rn,1),{value:u.full_name,font:{name:'Arial',bold:true,color:{argb:'FF'+TEXT},size:10},fill:hFill(bg),alignment:{horizontal:'left',vertical:'middle'},border:hBorder()});
+    ws.getRow(rn).height=28;
     dateList.forEach((dt,i)=>{
       const rec=att[localDateStr(dt)];
       const c=ws.getCell(rn,i+3);
-      if(rec?.status==='present'){c.value='✅';c.fill=hFill(GREEN2);c.font={name:'Arial',color:{argb:'FF'+GREEN},size:10};total++;}
-      else if(rec?.status==='leave'){c.value='🏖';c.fill=hFill(BLUE2);c.font={name:'Arial',color:{argb:'FF4A9EFF'},size:10};total++;}
-      else if(rec?.status==='absent'){c.value='❌';c.fill=hFill(RED2);c.font={name:'Arial',color:{argb:'FF'+RED},size:10};}
-      else{c.value='';c.fill=hFill(bg);}
-      c.alignment={horizontal:'center',vertical:'middle'}; c.border=hBorder();
+      c.border=hBorder();
+      if(rec?.status==='present'||rec?.status==='leave'){
+        const tin=new Date(rec.check_time);
+        const tinStr=tin.getHours()+':'+String(tin.getMinutes()).padStart(2,'0');
+        const tout=rec.check_out?new Date(rec.check_out):null;
+        const toutStr=tout?tout.getHours()+':'+String(tout.getMinutes()).padStart(2,'0'):'—';
+        c.value=tinStr+'
+'+toutStr;
+        c.fill=hFill(rec.status==='leave'?BLUE2:GREEN2);
+        c.font={name:'Arial',size:8,color:{argb:'FF'+TEXT}};
+        c.alignment={horizontal:'center',vertical:'middle',wrapText:true};
+        total++;
+      } else if(rec?.status==='absent'){
+        c.value='Vắng'; c.fill=hFill(RED2);
+        c.font={name:'Arial',bold:true,color:{argb:'FF'+RED},size:8};
+        c.alignment={horizontal:'center',vertical:'middle'};
+      } else {
+        c.value=''; c.fill=hFill(bg);
+        c.alignment={horizontal:'center',vertical:'middle'};
+      }
     });
     Object.assign(ws.getCell(rn,2),{value:total,font:{name:'Arial',bold:true,color:{argb:'FF'+ORANGE},size:12},fill:hFill(ORANGE2),alignment:{horizontal:'center',vertical:'middle'},border:hBorder()});
   });
