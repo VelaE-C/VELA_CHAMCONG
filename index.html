@@ -74,12 +74,11 @@
   #tab-teamtable.active{
     display:flex !important;
     flex-direction:column;
-    position:fixed;
-    top:100px;left:0;right:0;bottom:0;
-    padding:12px 16px 16px;
-    background:var(--bg);
-    z-index:10;
+    /* Không dùng position:fixed để tránh che navtabs */
+    width:100%;
+    height:calc(100vh - 160px);
     box-sizing:border-box;
+    padding:0;
   }
   #tab-teamtable #teamTableContent{
     flex:1;
@@ -87,6 +86,7 @@
     overflow:auto;
     border-radius:0 0 12px 12px;
   }
+  /* Override content max-width khi teamtable active - dùng JS */
   .card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:var(--card-shadow)}
   .card-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:20px}
 
@@ -269,6 +269,19 @@
             <div class="btn-label">CHẤM CÔNG</div>
           </button>
           <div class="checkin-result" id="checkinResult">Nhấn nút để tự động xác định vị trí và chấm công</div>
+
+          <!-- Checkout button - hidden until checked in -->
+          <div id="checkoutSection" style="display:none;margin-top:16px">
+            <button id="checkoutBtn" onclick="doCheckout()"
+              style="width:100%;background:rgba(74,158,255,.1);border:2px solid var(--blue);border-radius:12px;
+                     padding:14px;color:var(--blue);font-family:inherit;font-size:15px;font-weight:700;
+                     cursor:pointer;transition:all .2s"
+              onmouseover="this.style.background='rgba(74,158,255,.2)'"
+              onmouseout="this.style.background='rgba(74,158,255,.1)'">
+              🚪 CHECK OUT
+            </button>
+            <div id="checkoutResult" style="margin-top:10px;font-size:13px;color:var(--text3);text-align:center"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -850,7 +863,7 @@ function localDateStr(date) {
 }
 const MONTHS_VI = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
 
-let state = { session: null, currentUser: null, projects: [], users: [], checkedInToday: false, lastAttData: null, lastTeamData: null };
+let state = { session: null, currentUser: null, projects: [], users: [], checkedInToday: false, todayAttId: null, lastAttData: null, lastTeamData: null };
 
 // ── SUPABASE HELPERS ──
 async function sbFetch(path, options = {}) {
@@ -1480,6 +1493,66 @@ async function getDeviceFingerprint() {
 }
 
 
+// ── CHECKOUT ──
+async function doCheckout() {
+  const btn = document.getElementById('checkoutBtn');
+  const result = document.getElementById('checkoutResult');
+
+  // Get today's attendance ID
+  let attId = state.todayAttId;
+  if (!attId) {
+    const today = localDateStr();
+    const rows = await sbFetch(`attendance?user_id=eq.${state.currentUser.id}&check_date=eq.${today}&limit=1`);
+    if (!rows.length) { showToast('❌ Chưa có record check in hôm nay'); return; }
+    attId = rows[0].id;
+    state.todayAttId = attId;
+  }
+
+  if (!navigator.geolocation) {
+    // Checkout without GPS
+    await saveCheckout(attId, null, null, result, btn);
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = '⏳ Đang xác định vị trí...';
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      await saveCheckout(attId, pos.coords.latitude, pos.coords.longitude, result, btn);
+    },
+    async () => {
+      // GPS failed - checkout anyway
+      await saveCheckout(attId, null, null, result, btn);
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+async function saveCheckout(attId, lat, lng, result, btn) {
+  const now = new Date();
+  const nowStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  try {
+    await sbFetch(`attendance?id=eq.${attId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ check_out: now.toISOString() })
+    });
+    btn.disabled = true;
+    btn.textContent = `✅ Đã check out lúc ${nowStr}`;
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    result.innerHTML = `🚪 Check out: <strong>${nowStr}</strong>${lat ? ` — GPS ghi nhận` : ' — (không có GPS)'}`;
+    // Update checkin result display
+    const checkinRes = document.getElementById('checkinResult');
+    const existingText = checkinRes.innerHTML;
+    if (!existingText.includes('Check out')) {
+      checkinRes.innerHTML = existingText.replace('Chưa check out', `🚪 Check out: <strong>${nowStr}</strong>`);
+    }
+    showToast('✅ Check out thành công!');
+  } catch(e) {
+    btn.disabled = false; btn.textContent = '🚪 CHECK OUT';
+    showToast('❌ ' + e.message);
+  }
+}
+
 // ── GET ACCESSIBLE PROJECTS BY SCOPE ──
 function getAccessibleProjects() {
   const scope = state.currentUser.project_scope || 'fixed';
@@ -1607,7 +1680,7 @@ async function submitCheckin(projectId, latitude, longitude, dist, result, btn) 
       }).join(', ');
       showToast('⚠️ Phát hiện chấm công hộ — đã cảnh báo HR');
     }
-    await sbFetch('attendance', { method: 'POST', body: JSON.stringify({
+    const created = await sbFetch('attendance', { method: 'POST', body: JSON.stringify({
       user_id: state.currentUser.id, project_id: projectId,
       check_date: today, check_time: new Date().toISOString(),
       lat: latitude, lng: longitude, distance_m: dist, status: 'present',
@@ -1615,16 +1688,19 @@ async function submitCheckin(projectId, latitude, longitude, dist, result, btn) 
       note: `device:${deviceType}|accuracy:${dist}m`
     })});
     state.checkedInToday = true;
+    if (created && created[0]) state.todayAttId = created[0].id;
     btn.classList.add('done');
-    btn.querySelector('.btn-label').textContent = 'ĐÃ CHẤM';
+    btn.querySelector('.btn-label').textContent = 'ĐÃ CHECK IN';
     const now = new Date();
     const proj = state.projects.find(p => p.id === projectId);
-    result.innerHTML = `✅ Chấm công thành công lúc <strong>${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}</strong> tại ${proj?.name || ''} — cách ${dist}m`;
-    showToast('✅ Chấm công thành công!');
+    result.innerHTML = `✅ Check in: <strong>${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}</strong> tại ${proj?.name || ''} — cách ${dist}m`;
+    showToast('✅ Check in thành công!');
     document.getElementById('myMonth').value = now.getMonth() + 1;
     document.getElementById('myYear').value = now.getFullYear();
     document.getElementById('manualProjectRow').style.display = 'none';
     document.getElementById('detectedProject').style.display = 'none';
+    // Show checkout button
+    document.getElementById('checkoutSection').style.display = 'block';
   } catch(e) {
     if (e.message.includes('unique')) { result.innerHTML = '⚠️ Đã chấm công hôm nay rồi'; state.checkedInToday = true; }
     else result.innerHTML = '❌ ' + e.message;
@@ -1846,8 +1922,21 @@ function renderTeamTable(users,attByUser,dateList,el,month,year) {
       const dateStr = localDateStr(dt);
       const r = att[dateStr];
       if(r?.status==='present'||r?.status==='leave') total++;
-      const cell = r?(r.status==='present'?'<span style="color:var(--green)">✅</span>':r.status==='leave'?'<span style="color:var(--blue)">🏖</span>':'<span style="color:var(--red)">❌</span>'):'';
-      return `<td style="text-align:center;font-size:11px;padding:4px 2px;border-bottom:1px solid var(--border)">${cell}</td>`;
+      let cell = '';
+      if (r) {
+        if (r.status === 'present' || r.status === 'leave') {
+          const tin = new Date(r.check_time);
+          const tinStr = `${tin.getHours()}:${String(tin.getMinutes()).padStart(2,'0')}`;
+          const toutStr = r.check_out ? (() => { const t=new Date(r.check_out); return `${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`; })() : '';
+          cell = `<div style="color:var(--green);font-size:10px;font-weight:600;line-height:1.3">${tinStr}</div>`
+               + (toutStr ? `<div style="color:var(--blue);font-size:10px;line-height:1.3">${toutStr}</div>` : '<div style="color:var(--text3);font-size:9px">-</div>');
+        } else if (r.status === 'absent') {
+          cell = '<span style="color:var(--red);font-size:11px">❌</span>';
+        } else {
+          cell = '<span style="color:var(--blue);font-size:11px">🏖</span>';
+        }
+      }
+      return `<td style="text-align:center;font-size:10px;padding:3px 2px;border-bottom:1px solid var(--border);min-width:42px">${cell}</td>`;
     }).join('');
     return `<tr>
       <td style="${stickyName}background:${rowBg};padding:8px 12px;font-weight:500;color:var(--text);border-bottom:1px solid var(--border);overflow:hidden;text-overflow:ellipsis">${u.full_name}</td>
@@ -2714,6 +2803,15 @@ function switchTab(btn, id) {
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
+  // Full width for teamtable
+  const contentEl = document.querySelector('.content');
+  if (id === 'teamtable') {
+    contentEl.style.maxWidth = '100%';
+    contentEl.style.padding = '12px 16px';
+  } else {
+    contentEl.style.maxWidth = '';
+    contentEl.style.padding = '';
+  }
 }
 
 // ── TOAST ──
