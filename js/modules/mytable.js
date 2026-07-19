@@ -59,7 +59,7 @@ function renderMyTable(rows,month,year) {
     const dLabel=`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
     tableRows+=`<tr style="">
       <td style="font-family:'JetBrains Mono',monospace">${dLabel}</td>
-      <td>${DAYS[dt.getDay()]}</td>
+      <td>${DAYS_VI[dt.getDay()]}</td>
       <td>${r?`<span class="badge ${bClass}">${bLabel}</span>`:(isWe?'<span style="color:var(--gray5);font-size:11px">Nghỉ</span>':'<span class="badge badge-red">— Chưa có</span>')}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-size:12px">${ct?`${ct.getHours()}:${String(ct.getMinutes()).padStart(2,'0')}`:'—'}</td>
       <td style="font-size:12px;color:var(--gray5)">${r?.distance_m?r.distance_m+'m':'—'}</td>
@@ -76,4 +76,3 @@ function renderMyTable(rows,month,year) {
     <thead><tr><th>#</th><th>Thứ</th><th>Trạng thái</th><th>Giờ chấm</th><th>Khoảng cách</th><th>Dự án</th></tr></thead>
     <tbody>${tableRows}</tbody></table>`;
 }
-
