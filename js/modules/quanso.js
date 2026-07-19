@@ -3,7 +3,7 @@
 
 // ── QUAN SO ──
 // State: map project_id (ChamCong A) → project in Tiến Độ B
-let qsProjectMap = {}; // chamcong_code → {id, code, name} in B
+ // chamcong_code → {id, code, name} in B
 
 async function initQuanSo() {
   const todayEl = document.getElementById('qsNgay');
@@ -73,38 +73,6 @@ async function autoFillBCH() {
 }
 
 // Find matching project in Supabase B by code similarity
-function normalizeCode(s) {
-  // Remove spaces, dashes, lowercase for fuzzy match
-  return (s||'').toLowerCase().replace(/[\s\-_]+/g,'');
-}
-
-function findProjectB(codeA) {
-  // 1. Exact match
-  if (qsProjectMap[codeA]) return qsProjectMap[codeA];
-
-  const normA = normalizeCode(codeA);
-
-  // 2. Normalized exact match (ignore spaces/case)
-  for (const [codeB, proj] of Object.entries(qsProjectMap)) {
-    if (normalizeCode(codeB) === normA) return proj;
-  }
-
-  // 3. Partial match — one contains the other after normalize
-  for (const [codeB, proj] of Object.entries(qsProjectMap)) {
-    const normB = normalizeCode(codeB);
-    if (normA.includes(normB) || normB.includes(normA)) return proj;
-  }
-
-  // 4. Key word match — match first word (project prefix like IEC, VCN, VEGACITY)
-  const prefixA = normA.replace(/[0-9]/g,'').slice(0,6);
-  for (const [codeB, proj] of Object.entries(qsProjectMap)) {
-    const prefixB = normalizeCode(codeB).replace(/[0-9]/g,'').slice(0,6);
-    if (prefixA === prefixB && prefixA.length >= 3) return proj;
-  }
-
-  return null;
-}
-
 async function checkExistingReport() {
   const sel = document.getElementById('qsDuAn');
   const projectIdA = sel.value;
@@ -248,4 +216,3 @@ async function loadQuanSoHistory() {
     el.innerHTML = '<div class="empty-state">❌ ' + e.message + '</div>';
   }
 }
-
