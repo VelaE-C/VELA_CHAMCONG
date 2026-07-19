@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#1A2B4A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vela CC">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/VelaE-C/VELA_CHAMCONG/refs/heads/main/LOGO%20VELA.png">
+<title>Vela ChamCong</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════ -->
+<div id="loginScreen" style="display:flex">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="https://raw.githubusercontent.com/VelaE-C/VELA_CHAMCONG/refs/heads/main/LOGO%20VELA.png" alt="Vela E&C">
+      <div class="app-name">Hệ thống chấm công công trường</div>
+    </div>
+    <button class="btn-google" onclick="loginGoogle()">
+      <svg width="20" height="20" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      Đăng nhập bằng Google
+    </button>
+    <div id="loginMsg" style="text-align:center;font-size:13px;color:#DC2626;margin-top:14px"></div>
+    <div class="login-footer">
+      Phát hành bởi: <strong>Lê Trần Anh Toàn</strong><br>
+      Vela E&amp;C &nbsp;|&nbsp; 0978.635.450
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════ -->
+<div id="mainApp" style="display:none">
+
+  <!-- Desktop warning -->
+  <div id="desktopWarning">
+    🖥️ <strong>Lưu ý:</strong> Bạn đang dùng máy tính. Chức năng <strong>Chấm Công</strong> chỉ hoạt động trên điện thoại di động.
+  </div>
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <img src="https://raw.githubusercontent.com/VelaE-C/VELA_CHAMCONG/refs/heads/main/LOGO%20VELA.png" alt="Vela">
+      <span>ChamCong</span>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-user">
+        <div class="topbar-avatar" id="topbarAvatar">?</div>
+        <span id="topbarUserName" class="hidden-mobile"></span>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">Đăng xuất</button>
+    </div>
+  </header>
+
+  <!-- App shell: sidebar + content -->
+  <div class="app-shell">
+
+    <!-- Sidebar (PC only) -->
+    <nav class="sidebar">
+      <div id="sidebarNav"></div>
+    </nav>
+
+    <!-- Content area -->
+    <main class="content" id="mainContent">
+
+      <!-- ── PAGE: CHECKIN ── -->
+      <div class="page active" id="page-checkin">
+        <div class="content-header">
+          <h2>⏱ Chấm Công</h2>
+        </div>
+        <div class="card">
+          <div class="checkin-clock">
+            <div class="clock-date" id="dateDisplay"></div>
+            <div class="clock-time" id="timeDisplay">--:--:--</div>
+            <div class="clock-day"  id="dayDisplay"></div>
+
+            <div class="location-bar" id="locationStatus">
+              <div class="loc-dot idle" id="locDot"></div>
+              <span id="locText">Chưa lấy vị trí</span>
+            </div>
+
+            <!-- Auto-detected project -->
+            <div id="detectedProject" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#166534;text-align:center">
+              <span id="detectedProjectName"></span>
+            </div>
+
+            <!-- Manual project selector (multi-match) -->
+            <div id="manualProjectRow" style="display:none;margin-bottom:14px">
+              <div style="font-size:12px;color:#64748B;margin-bottom:6px;text-align:center">⚠️ Nhiều dự án gần đây — chọn dự án đang làm:</div>
+              <select id="projectSelect" class="form-control" style="margin-bottom:8px"></select>
+              <button onclick="confirmManualCheckin()" class="btn btn-success" style="width:100%">Xác nhận chấm công</button>
+            </div>
+
+            <input type="hidden" id="detectedProjectId">
+
+            <!-- Main checkin/checkout button -->
+            <button class="btn-checkin-main state-idle" id="checkinBtn" onclick="handleCheckinBtn()">
+              <div class="btn-icon-large" id="checkinBtnIcon">✅</div>
+              <div id="checkinBtnLabel">CHẤM CÔNG</div>
+            </button>
+
+            <div class="checkin-result-bar" id="checkinResult">
+              Nhấn nút để tự động xác định vị trí và chấm công
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAGE: MY TABLE ── -->
+      <div class="page" id="page-mytable">
+        <div class="content-header">
+          <h2>📋 Bảng Công Của Tôi</h2>
+        </div>
+        <div class="card">
+          <div class="month-nav">
+            <select id="myMonth" class="form-control" style="width:auto"></select>
+            <select id="myYear"  class="form-control" style="width:auto"></select>
+            <button class="btn btn-primary" onclick="loadMyAttendance()">Xem</button>
+            <button class="btn btn-secondary" onclick="exportMyExcel()">⬇ Excel</button>
+          </div>
+          <div class="stats-grid" id="myStats"></div>
+          <div class="table-wrap" id="myTableContent">
+            <div class="empty-state"><div class="empty-icon">📋</div>Chọn tháng và nhấn Xem</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAGE: TEAM TABLE ── -->
+      <div class="page" id="page-teamtable">
+        <div class="team-controls">
+          <select id="teamProject" class="form-control" style="width:auto;min-width:180px">
+            <option value="">-- Tất cả dự án --</option>
+          </select>
+          <select id="teamMonth" class="form-control" style="width:auto"></select>
+          <select id="teamYear"  class="form-control" style="width:auto"></select>
+          <button class="btn btn-primary" onclick="loadTeamAttendance()">Xem</button>
+          <button class="btn btn-secondary" onclick="exportTeamExcel()">⬇ Excel</button>
+        </div>
+        <div id="teamTableContent">
+          <div class="empty-state" style="margin-top:40px">
+            <div class="empty-icon">👥</div>Chọn tháng và nhấn Xem
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAGE: PROJECTS ── -->
+      <div class="page" id="page-projects">
+        <div class="content-header">
+          <h2>🗂 Quản Lý Dự Án</h2>
+        </div>
+
+        <!-- Add form -->
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer" onclick="toggleAddProjectForm()" id="addProjectToggle">
+            <div class="card-title" style="margin:0">Thêm dự án mới</div>
+            <button id="addProjectBtn" class="btn btn-primary btn-sm">+ Thêm mới</button>
+          </div>
+          <div id="addProjectFormBody" style="display:none;padding:0 20px 20px;border-top:1px solid var(--gray2)">
+            <div style="height:16px"></div>
+            <input type="hidden" id="editProjectId">
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Mã dự án</label><input type="text" id="pjCode" class="form-control" placeholder="VG-B13"></div>
+              <div class="form-group"><label class="form-label">Tên dự án</label><input type="text" id="pjName" class="form-control" placeholder="Sycamore B13"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Địa chỉ</label><input type="text" id="pjAddr" class="form-control" placeholder="Quy Nhơn, Bình Định"></div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Vĩ độ (Latitude)</label><input type="number" id="pjLat" class="form-control" placeholder="13.7760" step="any"></div>
+              <div class="form-group"><label class="form-label">Kinh độ (Longitude)</label><input type="number" id="pjLng" class="form-control" placeholder="109.2241" step="any"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Bán kính chấm công (mét)</label><input type="number" id="pjRadius" class="form-control" value="250"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary" style="flex:1;min-width:120px" onclick="saveProject()">💾 Lưu dự án</button>
+              <button class="btn btn-secondary" onclick="getCurrentLocation()">📍 Vị trí hiện tại</button>
+              <button class="btn btn-secondary" id="btnCancelPj" style="display:none" onclick="cancelEditProject()">Hủy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Danh sách dự án</div>
+          <div id="projectList" class="loading"><span class="loading-spinner"></span> Đang tải...</div>
+        </div>
+      </div>
+
+      <!-- ── PAGE: USERS (Nhân Sự) ── -->
+      <div class="page" id="page-users">
+        <div class="content-header">
+          <h2>👤 Nhân Sự</h2>
+        </div>
+
+        <!-- Add user form (collapsible) -->
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer" onclick="toggleAddUserForm()">
+            <div class="card-title" style="margin:0">Thêm nhân sự mới</div>
+            <button id="addUserToggleBtn" class="btn btn-primary btn-sm">+ Thêm mới</button>
+          </div>
+          <div id="addUserFormBody" style="display:none;padding:0 20px 20px;border-top:1px solid var(--gray2)">
+            <div style="height:16px"></div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Họ tên</label><input type="text" id="hrName" class="form-control" placeholder="Nguyễn Văn A"></div>
+              <div class="form-group"><label class="form-label">Mã nhân viên</label><input type="text" id="hrCode" class="form-control" placeholder="VL-001"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Email (đăng nhập Google)</label><input type="email" id="hrEmail" class="form-control" placeholder="nva@gmail.com"></div>
+              <div class="form-group"><label class="form-label">Số điện thoại</label><input type="text" id="hrPhone" class="form-control" placeholder="0901234567"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Chức vụ</label><input type="text" id="hrPosition" class="form-control" placeholder="Kỹ sư công trường"></div>
+              <div class="form-group"><label class="form-label">Phân quyền</label>
+                <select id="hrRole" class="form-control">
+                  <option value="employee">👷 Nhân viên</option>
+                  <option value="site_admin">🛡 Admin công trình</option>
+                  <option value="superadmin">🔑 Super Admin</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Phạm vi dự án</label>
+                <select id="hrScope" class="form-control" onchange="onScopeChange()">
+                  <option value="fixed">📍 Cố định — 1 dự án</option>
+                  <option value="multi">🗂 Đa dự án</option>
+                  <option value="all">🌐 Roaming — tất cả</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="form-label">Ngày vào làm</label><input type="date" id="hrJoinDate" class="form-control"></div>
+            </div>
+            <div class="form-group" id="fixedProjectRow"><label class="form-label">Dự án cố định</label><select id="hrProject" class="form-control"><option value="">-- Chọn dự án --</option></select></div>
+            <div class="form-group" id="multiProjectRow" style="display:none"><label class="form-label">Danh sách dự án (giữ Ctrl để chọn nhiều)</label><select id="hrAllowedProjects" class="form-control" multiple style="height:100px"></select></div>
+            <button class="btn btn-primary" id="btnSaveUser" onclick="saveUser()">Thêm nhân sự</button>
+            <div style="font-size:12px;color:var(--gray5);text-align:center;margin-top:8px">💡 Sau khi thêm, cửa sổ chỉnh sửa sẽ tự mở để upload hồ sơ PDF</div>
+            <input type="hidden" id="editUserId">
+          </div>
+        </div>
+
+        <!-- Filter + list -->
+        <div class="card">
+          <div class="card-title">Danh sách nhân sự</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <input type="text" id="filterName" class="form-control" placeholder="🔍 Tìm tên, email, mã NV..." oninput="filterUsers()" style="flex:2;min-width:140px">
+            <select id="filterProject" class="form-control" onchange="filterUsers()" style="flex:1;min-width:120px"><option value="">Tất cả dự án</option></select>
+            <select id="filterRole" class="form-control" onchange="filterUsers()" style="flex:1;min-width:110px">
+              <option value="">Tất cả quyền</option>
+              <option value="superadmin">🔑 Super Admin</option>
+              <option value="site_admin">🛡 Admin CT</option>
+              <option value="employee">👷 Nhân viên</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="clearFilterUsers()">✕ Xóa lọc</button>
+          </div>
+          <div id="filterCount" style="font-size:12px;color:var(--gray5);margin-bottom:8px"></div>
+          <div id="userList" class="loading"><span class="loading-spinner"></span> Đang tải...</div>
+        </div>
+
+        <!-- HR Doc panel (opens when editing user) -->
+        <div class="card" id="hrDocSection" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div>
+              <div class="card-title" style="margin:0">📄 Hồ sơ nhân sự</div>
+              <div id="hrDocUserName" style="font-size:13px;color:var(--blue);font-weight:600;margin-top:4px"></div>
+            </div>
+            <button onclick="closeHRDocs()" class="btn btn-secondary btn-sm">✕ Đóng</button>
+          </div>
+          <div style="background:var(--gray1);border:1px solid var(--gray2);border-radius:8px;padding:16px;margin-bottom:14px">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray5);letter-spacing:.06em;margin-bottom:12px">⬆️ Tải lên hồ sơ mới</div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Loại hồ sơ</label>
+                <select id="docType" class="form-control">
+                  <option value="cv">👤 CV Công việc</option>
+                  <option value="contract">📋 Hợp đồng lao động</option>
+                  <option value="id_card">🪪 CCCD / CMND</option>
+                  <option value="certificate">🎓 Bằng cấp / Chứng chỉ</option>
+                  <option value="health">🏥 Khám sức khỏe</option>
+                  <option value="other">📄 Khác</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="form-label">Ghi chú</label><input type="text" id="docNote" class="form-control" placeholder="VD: HĐ thử việc 2024"></div>
+            </div>
+            <div class="drop-zone" onclick="document.getElementById('docFile').click()" ondragover="event.preventDefault();this.style.borderColor='var(--blue)'" ondragleave="this.style.borderColor=''" ondrop="handleFileDrop(event)">
+              <div class="drop-icon">📄</div>
+              <div style="font-size:13px;font-weight:500">Kéo thả PDF vào đây hoặc click để chọn</div>
+              <div style="font-size:11px;margin-top:3px">Tối đa 50MB</div>
+            </div>
+            <input type="file" id="docFile" accept=".pdf" style="display:none" onchange="handleFileSelect(event)">
+            <div id="docFileInfo" style="display:none;margin-top:8px;font-size:12px;color:var(--green)"></div>
+            <button class="btn btn-primary" onclick="uploadDoc()" style="margin-top:10px;width:100%">⬆️ Tải lên</button>
+          </div>
+          <div id="docList" class="empty-state"><div class="empty-icon">📂</div>Chưa có hồ sơ nào</div>
+        </div>
+      </div>
+
+      <!-- ── PAGE: WARNINGS ── -->
+      <div class="page" id="page-warnings">
+        <div class="content-header">
+          <h2>⚠️ Cảnh Báo Chấm Công Hộ</h2>
+          <p>Danh sách các trường hợp nhiều tài khoản chấm công từ cùng một thiết bị trong cùng một ngày.</p>
+        </div>
+        <div class="card">
+          <div id="warningList" class="empty-state"><div class="empty-icon">✅</div>Chưa phát hiện trường hợp bất thường</div>
+        </div>
+      </div>
+
+      <!-- ── PAGE: ADJUST ── -->
+      <div class="page" id="page-adjust">
+        <div class="content-header">
+          <h2>✏️ Điều Chỉnh Công</h2>
+        </div>
+        <div class="card">
+          <div class="card-title">Điều chỉnh công</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Nhân viên</label>
+              <select id="adjUser" class="form-control" onchange="adjLoadExisting()"><option value="">-- Chọn nhân viên --</option></select>
+            </div>
+            <div class="form-group"><label class="form-label">Ngày cần điều chỉnh</label>
+              <input type="date" id="adjDate" class="form-control" onchange="adjLoadExisting()">
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">Dự án</label>
+            <select id="adjProject" class="form-control"><option value="">-- Chọn dự án --</option></select>
+          </div>
+          <div id="adjExistingInfo" style="display:none" class="alert alert-info"><span id="adjExistingText"></span></div>
+          <div class="form-group"><label class="form-label">Trạng thái mới</label>
+            <select id="adjStatus" class="form-control">
+              <option value="present">✅ Có mặt</option>
+              <option value="absent">❌ Vắng mặt</option>
+              <option value="leave">🏖️ Nghỉ phép</option>
+              <option value="holiday">🎌 Nghỉ lễ</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Lý do điều chỉnh <span style="color:var(--red)">*</span></label>
+            <textarea id="adjReason" class="form-control" placeholder="Ghi rõ lý do..."></textarea>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" style="flex:1" id="adjSubmitBtn" onclick="submitAdjust()">💾 Lưu điều chỉnh</button>
+            <button class="btn btn-secondary" onclick="clearAdjustForm()">Xóa form</button>
+          </div>
+        </div>
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="card-title" style="margin:0">Lịch sử điều chỉnh</div>
+            <select id="adjFilterUser" class="form-control" onchange="loadAdjHistory()" style="width:auto"><option value="">Tất cả nhân viên</option></select>
+          </div>
+          <div id="adjHistory" class="empty-state"><div class="empty-icon">📝</div>Chưa có điều chỉnh nào</div>
+        </div>
+      </div>
+
+      <!-- ── PAGE: QUÂN SỐ ── -->
+      <div class="page" id="page-quanso">
+        <div class="content-header">
+          <h2>👷 Báo Cáo Quân Số</h2>
+        </div>
+        <div class="card">
+          <div class="card-title">📋 Báo cáo hàng ngày</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Dự án</label>
+              <select id="qsDuAn" class="form-control" onchange="onQsDuAnChange()"><option value="">-- Chọn dự án --</option></select>
+            </div>
+            <div class="form-group"><label class="form-label">Ngày báo cáo</label>
+              <input type="date" id="qsNgay" class="form-control" onchange="onQsNgayChange()">
+            </div>
+          </div>
+          <div id="qsExistingWarn" style="display:none" class="alert alert-warning">⚠️ Đã có báo cáo ngày này. Nhấn Lưu sẽ <strong>cập nhật</strong> dữ liệu cũ.</div>
+          <div id="qsBCHInfo" style="display:none" class="alert alert-success"><span id="qsBCHInfoText"></span></div>
+
+          <div style="background:var(--gray1);border:1px solid var(--gray2);border-radius:8px;padding:16px;margin-bottom:14px">
+            <div class="card-title">Số lượng nhân công</div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">🏗 CN Kết cấu</label><input type="number" id="qsKetCau" class="form-control" min="0" value="0" oninput="calcTotal()"></div>
+              <div class="form-group"><label class="form-label">🎨 CN Hoàn thiện</label><input type="number" id="qsHoanThien" class="form-control" min="0" value="0" oninput="calcTotal()"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">⚡ CN MEP</label><input type="number" id="qsMEP" class="form-control" min="0" value="0" oninput="calcTotal()"></div>
+              <div class="form-group"><label class="form-label">📅 CN Công nhật</label><input type="number" id="qsCongNhat" class="form-control" min="0" value="0" oninput="calcTotal()"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">🔨 CN Khác</label><input type="number" id="qsKhac" class="form-control" min="0" value="0" oninput="calcTotal()"></div>
+              <div class="form-group"></div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:white;border:1px solid var(--gray2);border-radius:8px;padding:12px 16px">
+              <span style="font-size:13px;color:var(--gray5);font-weight:500">Tổng CN (KC+HT+MEP+CN nhật+Khác)</span>
+              <span id="qsTotal" style="font-size:26px;font-weight:700;font-family:monospace;color:var(--amber)">0</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">🏢 Số BCH có mặt <span style="color:var(--gray5);font-weight:400">(tự động từ bảng chấm công, có thể sửa)</span></label>
+            <input type="number" id="qsBCH" class="form-control" min="0" value="0">
+          </div>
+          <div class="form-group"><label class="form-label">Ghi chú (tùy chọn)</label><textarea id="qsNote" class="form-control" placeholder="Ghi chú thêm nếu có..."></textarea></div>
+          <button class="btn btn-primary" id="qsSubmitBtn" onclick="submitQuanSo()" style="width:100%">💾 Lưu báo cáo</button>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="card-title" style="margin:0">Lịch sử báo cáo gần đây</div>
+            <select id="qsFilterProject" class="form-control" onchange="loadQuanSoHistory()" style="width:auto"><option value="">Tất cả dự án</option></select>
+          </div>
+          <div id="qsHistory" class="empty-state"><div class="empty-icon">📋</div>Chưa có dữ liệu</div>
+        </div>
+      </div>
+
+    </main><!-- /content -->
+  </div><!-- /app-shell -->
+
+  <!-- Bottom nav (mobile) -->
+  <nav class="bottom-nav" id="bottomNav"></nav>
+
+  <!-- Edit user modal -->
+  <div id="editUserModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;overflow-y:auto;padding:40px 16px">
+    <div style="background:white;border-radius:12px;padding:28px;width:100%;max-width:560px;margin:0 auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--gray8)">✏️ Chỉnh sửa nhân sự</div>
+          <div id="editModalSubtitle" style="font-size:12px;color:var(--blue);margin-top:3px"></div>
+        </div>
+        <button onclick="closeEditUserModal()" class="btn btn-secondary btn-icon">✕</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Họ tên</label><input type="text" id="editName" class="form-control"></div>
+        <div class="form-group"><label class="form-label">Mã nhân viên</label><input type="text" id="editCode" class="form-control"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Email</label><input type="email" id="editEmail" class="form-control"></div>
+        <div class="form-group"><label class="form-label">Số điện thoại</label><input type="text" id="editPhone" class="form-control"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Chức vụ</label><input type="text" id="editPosition" class="form-control"></div>
+        <div class="form-group"><label class="form-label">Phân quyền</label>
+          <select id="editRole" class="form-control">
+            <option value="employee">👷 Nhân viên</option>
+            <option value="site_admin">🛡 Admin công trình</option>
+            <option value="superadmin">🔑 Super Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Phạm vi dự án</label>
+          <select id="editScope" class="form-control" onchange="onEditScopeChange()">
+            <option value="fixed">📍 Cố định</option>
+            <option value="multi">🗂 Đa dự án</option>
+            <option value="all">🌐 Roaming</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Ngày vào làm</label><input type="date" id="editJoinDate" class="form-control"></div>
+      </div>
+      <div class="form-group" id="editFixedProjectRow"><label class="form-label">Dự án cố định</label><select id="editProject" class="form-control"><option value="">-- Chọn --</option></select></div>
+      <div class="form-group" id="editMultiProjectRow" style="display:none"><label class="form-label">Danh sách dự án</label><select id="editAllowedProjects" class="form-control" multiple style="height:90px"></select></div>
+
+      <div style="background:var(--lred);border:1px solid #FECACA;border-radius:8px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--red)">⚠️ Vô hiệu hóa tài khoản</div>
+          <div style="font-size:11px;color:var(--gray5);margin-top:2px">Nhân viên sẽ không đăng nhập được</div>
+        </div>
+        <button onclick="confirmDeactivate()" id="deactivateBtn" class="btn btn-danger btn-sm">Vô hiệu hóa</button>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:20px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveEditUser()">💾 Lưu thay đổi</button>
+        <button class="btn btn-secondary" onclick="closeEditUserModal()">Hủy</button>
+      </div>
+
+      <!-- PDF section inside modal -->
+      <div style="border-top:1px solid var(--gray2);padding-top:16px">
+        <div class="card-title" style="margin-bottom:12px">📄 Hồ sơ PDF</div>
+        <div style="background:var(--gray1);border:1px solid var(--gray2);border-radius:8px;padding:14px;margin-bottom:12px">
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="form-group" style="margin-bottom:0"><label class="form-label">Loại hồ sơ</label>
+              <select id="modalDocType" class="form-control">
+                <option value="cv">👤 CV Công việc</option>
+                <option value="contract">📋 Hợp đồng lao động</option>
+                <option value="id_card">🪪 CCCD / CMND</option>
+                <option value="certificate">🎓 Bằng cấp / Chứng chỉ</option>
+                <option value="health">🏥 Khám sức khỏe</option>
+                <option value="other">📄 Khác</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0"><label class="form-label">Ghi chú</label><input type="text" id="modalDocNote" class="form-control" placeholder="VD: HĐ thử việc 2025"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label for="modalDocFile" style="flex:1;background:white;border:1px dashed var(--gray3);border-radius:6px;padding:9px 12px;cursor:pointer;font-size:13px;color:var(--gray5);text-align:center">📎 Chọn file PDF</label>
+            <input type="file" id="modalDocFile" accept=".pdf" style="display:none" onchange="onModalFileSelect(event)">
+            <button onclick="uploadModalDoc()" class="btn btn-warning" id="modalUploadBtn">⬆️ Tải lên</button>
+          </div>
+          <div id="modalFileInfo" style="display:none;margin-top:6px;font-size:12px;color:var(--green)"></div>
+        </div>
+        <div id="modalDocList" class="loading"><span class="loading-spinner"></span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /mainApp -->
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════
+     SCRIPTS — load order matters
+══════════════════════════════════════════ -->
+<script src="js/core/config.js"></script>
+<script src="js/core/utils.js"></script>
+<script src="js/core/auth.js"></script>
+<script src="js/modules/projects.js"></script>
+<script src="js/modules/users.js"></script>
+<script src="js/modules/checkin.js"></script>
+<script src="js/modules/mytable.js"></script>
+<script src="js/modules/teamtable.js"></script>
+<script src="js/modules/export.js"></script>
+<script src="js/modules/adjust.js"></script>
+<script src="js/modules/quanso.js"></script>
+<script src="js/modules/hrdocs.js"></script>
+<script src="js/modules/warnings.js"></script>
+<script src="js/main.js"></script>
+
+<!-- SW unregister (remove cache issues) -->
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+}
+// Close modal on backdrop click
+document.addEventListener('click', e => {
+  if (e.target === document.getElementById('editUserModal')) closeEditUserModal();
+});
+</script>
+
+</body>
+</html>
