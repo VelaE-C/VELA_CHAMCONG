@@ -15,7 +15,6 @@ async function exportMyExcel() {
   const NAVY='0D2137',ORANGE='F5A623',WHITE='FFFFFF',GREY='F5F7FA';
   const GREEN='27C47A',GREEN2='E8F8F1',RED='E85555',RED2='FDE8E8';
   const BLUE2='E8F1FD',TEXT='1A2B3C',LGREY='EAF0F6';
-  const DAYS_VI=['Chủ nhật','Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'];
   const statusLabel={present:'✅ Có mặt',absent:'❌ Vắng',leave:'🏖 Nghỉ phép',holiday:'🎌 Nghỉ lễ'};
   const statusColor={present:GREEN,absent:RED,leave:'4A9EFF',holiday:ORANGE};
   const statusBg={present:GREEN2,absent:RED2,leave:BLUE2,holiday:'FFF3DC'};
@@ -214,4 +213,3 @@ async function exportTeamExcel() {
   a.download='BangCong_Nhom_T'+month+'_'+year+(proj?'_'+proj.code:'')+'.xlsx';
   a.click(); showToast('✅ Đã xuất Excel!');
 }
-
