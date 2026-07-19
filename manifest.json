@@ -2,12 +2,12 @@
   "name": "Vela ChamCong",
   "short_name": "Vela CC",
   "description": "Hệ thống chấm công công trường VelaE&C",
-  "start_url": "/VELA_CHAMCONG/index.html",
+  "start_url": "/VELA_CHAMCONG/",
   "scope": "/VELA_CHAMCONG/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0f1923",
-  "theme_color": "#0f1923",
+  "background_color": "#1A2B4A",
+  "theme_color": "#1A2B4A",
   "lang": "vi",
   "icons": [
     {
