@@ -4,14 +4,6 @@
 // ── HR DOCUMENTS ──
 let currentHRUserId = null;
 
-const DOC_TYPE_LABEL = {
-  cv: '👤 CV Công việc',
-  contract: '📋 Hợp đồng lao động',
-  id_card: '🪪 CCCD / CMND',
-  certificate: '🎓 Bằng cấp / Chứng chỉ',
-  health: '🏥 Khám sức khỏe',
-  other: '📄 Khác'
-};
 
 function openHRDocs(userId, userName) {
   currentHRUserId = userId;
@@ -152,4 +144,3 @@ Hành động này không thể hoàn tác.`)) return;
     showToast('❌ ' + e.message);
   }
 }
-
