@@ -79,7 +79,7 @@ async function exportMyExcel() {
     const cout = rec?.check_out ? new Date(rec.check_out) : null;
     [String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0'),
      DAYS_VI[dt.getDay()],
-     rec?(statusLabel[rec.status]||''):'',
+     rec?(STATUS_LABEL[rec.status]||''):'',
      ct?ct.getHours()+':'+String(ct.getMinutes()).padStart(2,'0'):'',
      cout?cout.getHours()+':'+String(cout.getMinutes()).padStart(2,'0'):'',
      rec?.distance_m?rec.distance_m+'m':'',
@@ -88,7 +88,7 @@ async function exportMyExcel() {
       const c=ws.getCell(rn,i+1);
       c.value=v; c.fill=hFill(bg); c.border=hBorder();
       c.alignment={horizontal:i===7?'left':'center',vertical:'middle'};
-      if(i===2&&rec) c.font={name:'Arial',bold:true,color:{argb:'FF'+(statusColor[rec.status]||TEXT)},size:10};
+      if(i===2&&rec) c.font={name:'Arial',bold:true,color:{argb:'FF'+(STATUS_BADGE[rec.status]||TEXT)},size:10};
       else if(i===3&&ct) c.font={name:'Arial',bold:true,color:{argb:'FF'+GREEN},size:10};
       else if(i===4&&cout) c.font={name:'Arial',bold:true,color:{argb:'FF4A9EFF'},size:10};
       else c.font=hFont(false,TEXT,10);
