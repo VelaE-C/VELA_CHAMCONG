@@ -7,7 +7,7 @@ function startClock() {
     const now = new Date();
     document.getElementById('timeDisplay').textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
     document.getElementById('dateDisplay').textContent = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
-    document.getElementById('dayDisplay').textContent = DAYS[now.getDay()];
+    document.getElementById('dayDisplay').textContent = DAYS_VI[now.getDay()];
   }
   tick(); setInterval(tick, 1000);
 }
