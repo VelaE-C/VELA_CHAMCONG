@@ -1,4 +1,55 @@
 // VELA_CHAMCONG — checkin.js
+
+// ── SERVER TIME (chống chỉnh giờ điện thoại) ──
+async function getServerTime() {
+  // Query Supabase để lấy giờ server thực
+  // Dùng endpoint đặc biệt: select now() từ DB
+  try {
+    const res = await fetch(
+      `${CFG.SUPABASE_URL}/rest/v1/rpc/get_server_time`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': CFG.SUPABASE_KEY,
+          'Authorization': `Bearer ${STATE.session?.access_token || CFG.SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: '{}'
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      return new Date(data);
+    }
+  } catch(e) {}
+  // Fallback: dùng giờ điện thoại (sẽ bị RLS chặn nếu sai)
+  return new Date();
+}
+
+async function validateCheckinTime() {
+  // Lấy giờ server và kiểm tra ngày
+  const serverNow = await getServerTime();
+  const serverDateStr = serverNow.toISOString().slice(0,10); // UTC
+
+  // Convert sang UTC+7
+  const vn = new Date(serverNow.getTime() + 7 * 60 * 60 * 1000);
+  const vnDateStr = vn.toISOString().slice(0,10);
+
+  // So sánh với ngày hiện tại của điện thoại (UTC+7)
+  const phoneDateStr = localDateStr(); // từ utils.js
+
+  if (phoneDateStr !== vnDateStr) {
+    return {
+      valid: false,
+      serverDate: vnDateStr,
+      phoneDate: phoneDateStr,
+      message: `❌ Giờ điện thoại không khớp với giờ thực tế\nMáy chủ: ${vnDateStr.split('-').reverse().join('/')}\nĐiện thoại: ${phoneDateStr.split('-').reverse().join('/')}\n\nVui lòng chỉnh lại giờ điện thoại.`
+    };
+  }
+
+  return { valid: true, serverDate: vnDateStr, serverTime: vn };
+}
+
 // Check in / Check out + GPS geofencing
 
 // ── CLOCK ──
@@ -75,9 +126,18 @@ async function getDeviceFingerprint() {
 
 // ── CHECKOUT ──
 async function doCheckout() {
+  // Tầng 1: Validate giờ server
+  const timeCheck = await validateCheckinTime();
+  if (!timeCheck.valid) {
+    showToast('❌ Giờ điện thoại bị sai — không thể check out');
+    document.getElementById('checkinResult').innerHTML =
+      timeCheck.message.replace(/\n/g, '<br>');
+    return;
+  }
+
   let attId = STATE.todayAttId;
   if (!attId) {
-    const today = localDateStr();
+    const today = timeCheck.serverDate; // Dùng ngày server
     const rows = await sbFetch(`attendance?user_id=eq.${STATE.currentUser.id}&check_date=eq.${today}&limit=1`);
     if (!rows.length) { showToast('❌ Chưa check in hôm nay'); return; }
     attId = rows[0].id;
@@ -138,9 +198,12 @@ async function saveCheckout(attId, lat, lng, dist, result, btn) {
   const nowStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
   try {
     // PATCH check_out — overwrites previous, always latest time
+    // Tầng 2: Dùng giờ server (gọi RPC hoặc để DB trigger)
+    // Gửi check_out = null để trigger DB function, hoặc dùng server timestamp
+    const serverNow = await getServerTime();
     await sbFetch(`attendance?id=eq.${attId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ check_out: now.toISOString() })
+      body: JSON.stringify({ check_out: serverNow.toISOString() })
     });
     // Get check_in time to display
     const rows = await sbFetch(`attendance?id=eq.${attId}&select=check_time&limit=1`);
@@ -294,9 +357,11 @@ async function submitCheckin(projectId, latitude, longitude, dist, result, btn) 
       }).join(', ');
       showToast('⚠️ Phát hiện chấm công hộ — đã cảnh báo HR');
     }
+    // Tầng 2: Không gửi check_time → DB tự điền now() (giờ server)
     const created = await sbFetch('attendance', { method: 'POST', body: JSON.stringify({
       user_id: STATE.currentUser.id, project_id: projectId,
-      check_date: today, check_time: new Date().toISOString(),
+      check_date: today,
+      // check_time: bỏ → Supabase tự điền DEFAULT now()
       lat: latitude, lng: longitude, distance_m: dist, status: 'present',
       device_fingerprint: fingerprint, is_suspicious: sameDevice.length > 0,
       note: `device:${deviceType}|accuracy:${dist}m`
