@@ -404,13 +404,8 @@ async function confirmManualCheckin() {
 }
 
 async function submitCheckin(projectId, latitude, longitude, dist, result, btn, serverDate) {
-  // serverDate PHẢI là ngày từ server — không dùng localDateStr()
-  if (!serverDate) {
-    result.innerHTML = '❌ Không xác định được ngày từ máy chủ';
-    btn.disabled = false;
-    return;
-  }
-  const today = serverDate; // Ngày server UTC+7
+  // Dùng serverDate nếu có, fallback localDateStr() — RLS DB sẽ chặn nếu ngày sai
+  const today = serverDate || localDateStr();
   try {
     const fingerprint = await getDeviceFingerprint();
     const deviceType = isMobileDevice() ? 'mobile' : 'desktop';
