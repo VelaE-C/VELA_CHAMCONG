@@ -231,23 +231,26 @@ async function doCheckout() {
 }
 
 async function saveCheckout(attId, lat, lng, dist, result, btn) {
-  const now = new Date();
-  const nowStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
   try {
-    // PATCH check_out — overwrites previous, always latest time
-    // Tầng 2: Dùng giờ server thực — không phụ thuộc giờ điện thoại
-    const serverNow = timeCheck.serverNow || await getServerTime();
+    // Tầng 2: Lấy giờ server thực — không phụ thuộc giờ điện thoại
+    const serverNow = await getServerTime();
+    const vnNow = new Date(serverNow.getTime() + 7 * 60 * 60 * 1000);
+    const displayStr = `${vnNow.getUTCHours()}:${String(vnNow.getUTCMinutes()).padStart(2,'0')}`;
+
     await sbFetch(`attendance?id=eq.${attId}`, {
       method: 'PATCH',
       body: JSON.stringify({ check_out: serverNow.toISOString() })
     });
-    // Get check_in time to display
+
+    // Lấy giờ check_in để hiển thị
     const rows = await sbFetch(`attendance?id=eq.${attId}&select=check_time&limit=1`);
     const tin = rows.length ? new Date(rows[0].check_time) : null;
-    const tinStr = tin ? `${tin.getHours()}:${String(tin.getMinutes()).padStart(2,'0')}` : '—';
-    setCheckedOutState(tinStr, nowStr);
-    result.innerHTML = `✅ Check in: <strong>${tinStr}</strong> &nbsp;|&nbsp; 🚪 Check out: <strong>${nowStr}</strong> — cách ${dist}m`;
-    showToast(`✅ Check out lúc ${nowStr} — có thể cập nhật lại nếu cần`);
+    const tinVN = tin ? new Date(tin.getTime() + 7 * 60 * 60 * 1000) : null;
+    const tinStr = tinVN ? `${tinVN.getUTCHours()}:${String(tinVN.getUTCMinutes()).padStart(2,'0')}` : '—';
+
+    setCheckedOutState(tinStr, displayStr);
+    result.innerHTML = `✅ Check in: <strong>${tinStr}</strong> &nbsp;|&nbsp; 🚪 Check out: <strong>${displayStr}</strong> — cách ${dist}m`;
+    showToast(`✅ Check out lúc ${displayStr} — có thể cập nhật lại nếu cần`);
   } catch(e) {
     btn.disabled = false;
     document.getElementById('checkinBtnLabel').textContent = '🚪 CHECK OUT';
