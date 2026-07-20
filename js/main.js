@@ -5,14 +5,14 @@
 
 // ── Navigation ──
 const NAV_PAGES = {
-  checkin:    { label: '⏱ Chấm Công',       icon: '⏱', adminOnly: false },
-  mytable:    { label: '📋 Bảng Công Tôi',   icon: '📋', adminOnly: false },
-  teamtable:  { label: '👥 Bảng Công Nhóm',  icon: '👥', adminOnly: true  },
-  projects:   { label: '🗂 Dự Án',           icon: '🗂', adminOnly: true  },
-  users:      { label: '👤 Nhân Sự',         icon: '👤', adminOnly: true  },
-  warnings:   { label: '⚠️ Cảnh Báo',        icon: '⚠️', adminOnly: true  },
-  adjust:     { label: '✏️ Điều Chỉnh',      icon: '✏️', adminOnly: true  },
-  quanso:     { label: '👷 Báo Cáo Quân Số', icon: '👷', adminOnly: false },
+  checkin:    { label: 'Chấm Công',       icon: '⏱', adminOnly: false },
+  mytable:    { label: 'Bảng Công Tôi',   icon: '📋', adminOnly: false },
+  teamtable:  { label: 'Bảng Công Nhóm',  icon: '👥', adminOnly: true  },
+  projects:   { label: 'Dự Án',           icon: '🗂', adminOnly: true  },
+  users:      { label: 'Nhân Sự',         icon: '👤', adminOnly: true  },
+  warnings:   { label: 'Cảnh Báo',        icon: '⚠️', adminOnly: true  },
+  adjust:     { label: 'Điều Chỉnh',      icon: '✏️', adminOnly: true  },
+  quanso:     { label: 'Báo Cáo Quân Số', icon: '👷', adminOnly: false },
 };
 
 function navigate(pageId) {
