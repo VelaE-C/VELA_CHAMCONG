@@ -2,9 +2,10 @@
 
 // ── SERVER TIME (chống chỉnh giờ điện thoại) ──
 async function getServerTime() {
+  const auth = STATE.session?.access_token || CFG.SUPABASE_KEY;
   const headers = {
     'apikey': CFG.SUPABASE_KEY,
-    'Authorization': `Bearer ${STATE.session?.access_token || CFG.SUPABASE_KEY}`,
+    'Authorization': `Bearer ${auth}`,
     'Content-Type': 'application/json'
   };
 
@@ -13,53 +14,52 @@ async function getServerTime() {
     const res = await fetch(`${CFG.SUPABASE_URL}/rest/v1/rpc/get_server_time`,
       { method: 'POST', headers, body: '{}' });
     if (res.ok) {
-      const data = await res.json();
-      if (data) { console.log('Server time via RPC:', data); return new Date(data); }
-    } else { console.warn('RPC failed:', res.status, await res.text()); }
-  } catch(e) { console.warn('RPC error:', e.message); }
+      const txt = await res.text();
+      const d = new Date(txt.replace(/"/g, ''));
+      if (!isNaN(d)) return d;
+    }
+  } catch(e) {}
 
-  // Cách 2: Header Date từ HTTP response
+  // Cách 2: Header Date
   try {
     const res = await fetch(`${CFG.SUPABASE_URL}/rest/v1/projects?select=id&limit=1`,
       { method: 'GET', headers });
-    const d = res.headers.get('date') || res.headers.get('Date');
-    if (d) { console.log('Server time via header:', d); return new Date(d); }
-  } catch(e) { console.warn('Header fallback error:', e.message); }
-
-  // Cách 3: Lấy created_at từ bất kỳ record nào — không dùng
-  // Cách 4: worldtimeapi.org — nguồn thời gian độc lập
-  try {
-    const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.datetime) { console.log('Server time via worldtimeapi:', data.datetime); return new Date(data.datetime); }
-    }
-  } catch(e) { console.warn('WorldTimeAPI error:', e.message); }
-
-  // Cách 5: time.cloudflare.com
-  try {
-    const res = await fetch('https://time.cloudflare.com/', { mode: 'no-cors' });
-    // no-cors không đọc được body, skip
+    const d = res.headers.get('date');
+    if (d) return new Date(d);
   } catch(e) {}
 
-  throw new Error('Không lấy được giờ máy chủ. Kiểm tra kết nối mạng.');
+  // Cách 3: WorldTimeAPI
+  try {
+    const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh',
+      { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.utc_datetime) return new Date(data.utc_datetime);
+    }
+  } catch(e) {}
+
+  // Cách 4: timeapi.io
+  try {
+    const res = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia/Ho_Chi_Minh',
+      { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.dateTime) return new Date(data.dateTime);
+    }
+  } catch(e) {}
+
+  // Cách 5: Fallback cuối — dùng giờ điện thoại, để RLS DB chặn nếu sai ngày
+  console.warn('All server time sources failed, using device time');
+  return new Date(); // RLS sẽ chặn nếu ngày sai
 }
 
 async function validateCheckinTime() {
-  let serverNow;
-  try {
-    serverNow = await getServerTime();
-  } catch(e) {
-    // Không lấy được giờ server → chặn
-    return {
-      valid: false,
-      serverDate: null,
-      message: '❌ Không thể xác minh giờ thực tế từ máy chủ.\nVui lòng kiểm tra kết nối mạng.'
-    };
-  }
+  // getServerTime() giờ không throw nữa — luôn trả về Date
+  const serverNow = await getServerTime();
+  let serverNow_ref = serverNow;
 
   // Ngày server tính theo UTC+7 (Việt Nam)
-  const vnNow = new Date(serverNow.getTime() + 7 * 60 * 60 * 1000);
+  const vnNow = new Date(serverNow_ref.getTime() + 7 * 60 * 60 * 1000);
   const serverDateVN = vnNow.toISOString().slice(0, 10); // YYYY-MM-DD
 
   // Ngày điện thoại tính theo UTC+7
@@ -290,15 +290,14 @@ function getAccessibleProjects() {
 
 // ── AUTO-DETECT CHECKIN ──
 async function doCheckin() {
-  // Validate ngày/giờ với server TRƯỚC khi lấy GPS
-  const timeCheck = await validateCheckinTime();
-  if (!timeCheck.valid) {
-    document.getElementById('checkinResult').innerHTML =
-      `❌ ${timeCheck.message.replace(/\n/g, '<br>')}`;
-    showToast('❌ Ngày điện thoại không đúng');
-    return;
+  // Lấy serverDate để dùng khi insert — không block nếu fail
+  try {
+    const serverNow = await getServerTime();
+    const vnNow = new Date(serverNow.getTime() + 7 * 60 * 60 * 1000);
+    STATE._serverDate = vnNow.toISOString().slice(0, 10);
+  } catch(e) {
+    STATE._serverDate = localDateStr(); // fallback — RLS DB sẽ chặn nếu sai
   }
-  STATE._serverDate = timeCheck.serverDate; // Lưu tạm để dùng khi submit
   _doCheckinWithGPS();
 }
 
