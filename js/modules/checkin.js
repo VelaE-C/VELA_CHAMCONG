@@ -2,44 +2,47 @@
 
 // ── SERVER TIME (chống chỉnh giờ điện thoại) ──
 async function getServerTime() {
-  // Cách 1: Gọi RPC function get_server_time()
+  const headers = {
+    'apikey': CFG.SUPABASE_KEY,
+    'Authorization': `Bearer ${STATE.session?.access_token || CFG.SUPABASE_KEY}`,
+    'Content-Type': 'application/json'
+  };
+
+  // Cách 1: RPC get_server_time()
   try {
-    const res = await fetch(
-      `${CFG.SUPABASE_URL}/rest/v1/rpc/get_server_time`,
-      {
-        method: 'POST',
-        headers: {
-          'apikey': CFG.SUPABASE_KEY,
-          'Authorization': `Bearer ${STATE.session?.access_token || CFG.SUPABASE_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: '{}'
-      }
-    );
+    const res = await fetch(`${CFG.SUPABASE_URL}/rest/v1/rpc/get_server_time`,
+      { method: 'POST', headers, body: '{}' });
     if (res.ok) {
       const data = await res.json();
-      if (data) return new Date(data);
-    }
-  } catch(e) { console.warn('RPC get_server_time failed:', e); }
+      if (data) { console.log('Server time via RPC:', data); return new Date(data); }
+    } else { console.warn('RPC failed:', res.status, await res.text()); }
+  } catch(e) { console.warn('RPC error:', e.message); }
 
-  // Cách 2: Đọc header Date từ response Supabase (luôn là giờ server)
+  // Cách 2: Header Date từ HTTP response
   try {
-    const res = await fetch(
-      `${CFG.SUPABASE_URL}/rest/v1/projects?limit=1`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': CFG.SUPABASE_KEY,
-          'Authorization': `Bearer ${STATE.session?.access_token || CFG.SUPABASE_KEY}`
-        }
-      }
-    );
-    const dateHeader = res.headers.get('date');
-    if (dateHeader) return new Date(dateHeader);
-  } catch(e) { console.warn('Header date fallback failed:', e); }
+    const res = await fetch(`${CFG.SUPABASE_URL}/rest/v1/projects?select=id&limit=1`,
+      { method: 'GET', headers });
+    const d = res.headers.get('date') || res.headers.get('Date');
+    if (d) { console.log('Server time via header:', d); return new Date(d); }
+  } catch(e) { console.warn('Header fallback error:', e.message); }
 
-  // Cách 3: Dùng một bảng bất kỳ để lấy timestamp từ response
-  throw new Error('Không xác định được ngày từ máy chủ. Vui lòng kiểm tra mạng.');
+  // Cách 3: Lấy created_at từ bất kỳ record nào — không dùng
+  // Cách 4: worldtimeapi.org — nguồn thời gian độc lập
+  try {
+    const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.datetime) { console.log('Server time via worldtimeapi:', data.datetime); return new Date(data.datetime); }
+    }
+  } catch(e) { console.warn('WorldTimeAPI error:', e.message); }
+
+  // Cách 5: time.cloudflare.com
+  try {
+    const res = await fetch('https://time.cloudflare.com/', { mode: 'no-cors' });
+    // no-cors không đọc được body, skip
+  } catch(e) {}
+
+  throw new Error('Không lấy được giờ máy chủ. Kiểm tra kết nối mạng.');
 }
 
 async function validateCheckinTime() {
@@ -483,3 +486,5 @@ function calcDistance(lat1,lng1,lat2,lng2) {
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
+
+
