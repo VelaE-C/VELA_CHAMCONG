@@ -163,6 +163,11 @@ async function getDeviceFingerprint() {
 
 // ── CHECKOUT ──
 async function doCheckout() {
+  // Chặn PC — chỉ cho mobile
+  if (!isMobileDevice()) {
+    showToast('❌ Chức năng Chấm Công chỉ hoạt động trên điện thoại di động');
+    return;
+  }
   // Tầng 1: Validate giờ server
   const timeCheck = await validateCheckinTime();
   if (!timeCheck.valid) {
