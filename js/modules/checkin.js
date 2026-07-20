@@ -73,7 +73,15 @@ function startClock() {
 
 // ── CHECK TODAY ──
 async function checkTodayAttendance() {
-  const today = localDateStr();
+  // Dùng ngày server để check — không bị ảnh hưởng bởi giờ điện thoại
+  let today;
+  try {
+    const serverNow = await getServerTime();
+    const vnNow = new Date(serverNow.getTime() + 7 * 60 * 60 * 1000);
+    today = vnNow.toISOString().slice(0, 10);
+  } catch(e) {
+    today = localDateStr(); // fallback nếu offline
+  }
   try {
     const rows = await sbFetch(`attendance?user_id=eq.${STATE.currentUser.id}&check_date=eq.${today}&limit=1`);
     if (!rows.length) return;
@@ -250,6 +258,19 @@ function getAccessibleProjects() {
 
 // ── AUTO-DETECT CHECKIN ──
 async function doCheckin() {
+  // Validate ngày/giờ với server TRƯỚC khi lấy GPS
+  const timeCheck = await validateCheckinTime();
+  if (!timeCheck.valid) {
+    document.getElementById('checkinResult').innerHTML =
+      `❌ ${timeCheck.message.replace(/\n/g, '<br>')}`;
+    showToast('❌ Ngày điện thoại không đúng');
+    return;
+  }
+  STATE._serverDate = timeCheck.serverDate; // Lưu tạm để dùng khi submit
+  _doCheckinWithGPS();
+}
+
+async function _doCheckinWithGPS() {
   if (STATE.checkedInToday) { showToast('⚠️ Hôm nay đã chấm công rồi'); return; }
 
   // Lớp 1: Chặn desktop
@@ -346,13 +367,19 @@ async function confirmManualCheckin() {
   result.textContent = '⏳ Đang chấm công...';
   navigator.geolocation.getCurrentPosition(async pos => {
     const dist = Math.round(calcDistance(pos.coords.latitude, pos.coords.longitude, proj.lat, proj.lng));
-    await submitCheckin(projectId, pos.coords.latitude, pos.coords.longitude, dist, result, btn);
+    await submitCheckin(projectId, pos.coords.latitude, pos.coords.longitude, dist, result, btn, STATE._serverDate);
   }, () => { result.textContent = '❌ Không lấy được GPS'; btn.disabled = false; },
   { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
 }
 
-async function submitCheckin(projectId, latitude, longitude, dist, result, btn) {
-  const today = localDateStr();
+async function submitCheckin(projectId, latitude, longitude, dist, result, btn, serverDate) {
+  // serverDate PHẢI là ngày từ server — không dùng localDateStr()
+  if (!serverDate) {
+    result.innerHTML = '❌ Không xác định được ngày từ máy chủ';
+    btn.disabled = false;
+    return;
+  }
+  const today = serverDate; // Ngày server UTC+7
   try {
     const fingerprint = await getDeviceFingerprint();
     const deviceType = isMobileDevice() ? 'mobile' : 'desktop';
