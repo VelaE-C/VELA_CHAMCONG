@@ -2,23 +2,44 @@
 
 // ── SERVER TIME (chống chỉnh giờ điện thoại) ──
 async function getServerTime() {
-  // Lấy giờ thực từ Supabase server — không bị ảnh hưởng bởi giờ điện thoại
-  const res = await fetch(
-    `${CFG.SUPABASE_URL}/rest/v1/rpc/get_server_time`,
-    {
-      method: 'POST',
-      headers: {
-        'apikey': CFG.SUPABASE_KEY,
-        'Authorization': `Bearer ${STATE.session?.access_token || CFG.SUPABASE_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: '{}'
+  // Cách 1: Gọi RPC function get_server_time()
+  try {
+    const res = await fetch(
+      `${CFG.SUPABASE_URL}/rest/v1/rpc/get_server_time`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': CFG.SUPABASE_KEY,
+          'Authorization': `Bearer ${STATE.session?.access_token || CFG.SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: '{}'
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data) return new Date(data);
     }
-  );
-  if (!res.ok) throw new Error('Không lấy được giờ máy chủ. Vui lòng kiểm tra kết nối mạng.');
-  const data = await res.json();
-  return new Date(data);
-  // KHÔNG có fallback — nếu không lấy được giờ server thì chặn hoàn toàn
+  } catch(e) { console.warn('RPC get_server_time failed:', e); }
+
+  // Cách 2: Đọc header Date từ response Supabase (luôn là giờ server)
+  try {
+    const res = await fetch(
+      `${CFG.SUPABASE_URL}/rest/v1/projects?limit=1`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': CFG.SUPABASE_KEY,
+          'Authorization': `Bearer ${STATE.session?.access_token || CFG.SUPABASE_KEY}`
+        }
+      }
+    );
+    const dateHeader = res.headers.get('date');
+    if (dateHeader) return new Date(dateHeader);
+  } catch(e) { console.warn('Header date fallback failed:', e); }
+
+  // Cách 3: Dùng một bảng bất kỳ để lấy timestamp từ response
+  throw new Error('Không xác định được ngày từ máy chủ. Vui lòng kiểm tra mạng.');
 }
 
 async function validateCheckinTime() {
