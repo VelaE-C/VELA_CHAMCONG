@@ -2,52 +2,60 @@
 
 // ── SERVER TIME (chống chỉnh giờ điện thoại) ──
 async function getServerTime() {
-  // Query Supabase để lấy giờ server thực
-  // Dùng endpoint đặc biệt: select now() từ DB
-  try {
-    const res = await fetch(
-      `${CFG.SUPABASE_URL}/rest/v1/rpc/get_server_time`,
-      {
-        method: 'POST',
-        headers: {
-          'apikey': CFG.SUPABASE_KEY,
-          'Authorization': `Bearer ${STATE.session?.access_token || CFG.SUPABASE_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: '{}'
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      return new Date(data);
+  // Lấy giờ thực từ Supabase server — không bị ảnh hưởng bởi giờ điện thoại
+  const res = await fetch(
+    `${CFG.SUPABASE_URL}/rest/v1/rpc/get_server_time`,
+    {
+      method: 'POST',
+      headers: {
+        'apikey': CFG.SUPABASE_KEY,
+        'Authorization': `Bearer ${STATE.session?.access_token || CFG.SUPABASE_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: '{}'
     }
-  } catch(e) {}
-  // Fallback: dùng giờ điện thoại (sẽ bị RLS chặn nếu sai)
-  return new Date();
+  );
+  if (!res.ok) throw new Error('Không lấy được giờ máy chủ. Vui lòng kiểm tra kết nối mạng.');
+  const data = await res.json();
+  return new Date(data);
+  // KHÔNG có fallback — nếu không lấy được giờ server thì chặn hoàn toàn
 }
 
 async function validateCheckinTime() {
-  // Lấy giờ server và kiểm tra ngày
-  const serverNow = await getServerTime();
-  const serverDateStr = serverNow.toISOString().slice(0,10); // UTC
-
-  // Convert sang UTC+7
-  const vn = new Date(serverNow.getTime() + 7 * 60 * 60 * 1000);
-  const vnDateStr = vn.toISOString().slice(0,10);
-
-  // So sánh với ngày hiện tại của điện thoại (UTC+7)
-  const phoneDateStr = localDateStr(); // từ utils.js
-
-  if (phoneDateStr !== vnDateStr) {
+  let serverNow;
+  try {
+    serverNow = await getServerTime();
+  } catch(e) {
+    // Không lấy được giờ server → chặn
     return {
       valid: false,
-      serverDate: vnDateStr,
-      phoneDate: phoneDateStr,
-      message: `❌ Giờ điện thoại không khớp với giờ thực tế\nMáy chủ: ${vnDateStr.split('-').reverse().join('/')}\nĐiện thoại: ${phoneDateStr.split('-').reverse().join('/')}\n\nVui lòng chỉnh lại giờ điện thoại.`
+      serverDate: null,
+      message: '❌ Không thể xác minh giờ thực tế từ máy chủ.\nVui lòng kiểm tra kết nối mạng.'
     };
   }
 
-  return { valid: true, serverDate: vnDateStr, serverTime: vn };
+  // Ngày server tính theo UTC+7 (Việt Nam)
+  const vnNow = new Date(serverNow.getTime() + 7 * 60 * 60 * 1000);
+  const serverDateVN = vnNow.toISOString().slice(0, 10); // YYYY-MM-DD
+
+  // Ngày điện thoại tính theo UTC+7
+  const phoneNow = new Date();
+  const phoneVN = new Date(phoneNow.getTime() + 7 * 60 * 60 * 1000);
+  const phoneDateVN = phoneVN.toISOString().slice(0, 10);
+
+  // Kiểm tra ngày khớp không
+  if (phoneDateVN !== serverDateVN) {
+    const serverDisplay = serverDateVN.split('-').reverse().join('/');
+    const phoneDisplay  = phoneDateVN.split('-').reverse().join('/');
+    return {
+      valid: false,
+      serverDate: serverDateVN,
+      message: `❌ Ngày trên điện thoại không đúng!\n\n📱 Điện thoại: ${phoneDisplay}\n🖥️ Máy chủ: ${serverDisplay}\n\nVui lòng chỉnh lại ngày/giờ điện thoại sang "Tự động" rồi thử lại.`
+    };
+  }
+
+  // Trả về ngày SERVER (không phải điện thoại) để dùng khi insert DB
+  return { valid: true, serverDate: serverDateVN, serverNow };
 }
 
 // Check in / Check out + GPS geofencing
@@ -198,9 +206,8 @@ async function saveCheckout(attId, lat, lng, dist, result, btn) {
   const nowStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
   try {
     // PATCH check_out — overwrites previous, always latest time
-    // Tầng 2: Dùng giờ server (gọi RPC hoặc để DB trigger)
-    // Gửi check_out = null để trigger DB function, hoặc dùng server timestamp
-    const serverNow = await getServerTime();
+    // Tầng 2: Dùng giờ server thực — không phụ thuộc giờ điện thoại
+    const serverNow = timeCheck.serverNow || await getServerTime();
     await sbFetch(`attendance?id=eq.${attId}`, {
       method: 'PATCH',
       body: JSON.stringify({ check_out: serverNow.toISOString() })
