@@ -24,8 +24,8 @@ async function initQuanSo() {
   // Load project map from Supabase B (for UUID mapping)
   try {
     const projsB = await sb2Fetch('projects?order=code&select=id,code,name');
-    qsProjectMap = {};
-    projsB.forEach(p => { qsProjectMap[p.code] = p; });
+    _qsProjectMap = {};
+    projsB.forEach(p => { _qsProjectMap[p.code] = p; });
   } catch(e) {
     console.warn('Không load được projects từ Tiến Độ:', e.message);
   }
