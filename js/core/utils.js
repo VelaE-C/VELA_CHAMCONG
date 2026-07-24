@@ -148,15 +148,26 @@ function showEmpty(elId, icon = '📋', msg = 'Chưa có dữ liệu') {
 // ── Month selector populate ──
 function populateMonthYear(monthId, yearId) {
   const now = new Date();
+  // Tự động chọn đúng kỳ công hiện tại:
+  // Nếu hôm nay >= 26 → kỳ đang chạy là tháng sau
+  // Nếu hôm nay <= 25 → kỳ đang chạy là tháng này
+  let currentMonth = now.getMonth() + 1; // 1-12
+  let currentYear  = now.getFullYear();
+  if (now.getDate() >= 26) {
+    // Đã qua ngày 26 → kỳ tháng sau đang chạy
+    currentMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    if (currentMonth === 1) currentYear += 1;
+  }
+
   const mEl = document.getElementById(monthId);
   const yEl = document.getElementById(yearId);
   if (!mEl || !yEl) return;
   mEl.innerHTML = MONTHS_VI.map((m,i) =>
-    `<option value="${i+1}" ${i+1===now.getMonth()+1?'selected':''}>${m}</option>`
+    `<option value="${i+1}" ${i+1===currentMonth?'selected':''}>${m}</option>`
   ).join('');
   yEl.innerHTML = '';
-  for (let y = now.getFullYear(); y >= now.getFullYear()-2; y--) {
-    yEl.innerHTML += `<option value="${y}" ${y===now.getFullYear()?'selected':''}>${y}</option>`;
+  for (let y = now.getFullYear()+1; y >= now.getFullYear()-2; y--) {
+    yEl.innerHTML += `<option value="${y}" ${y===currentYear?'selected':''}>${y}</option>`;
   }
 }
 
