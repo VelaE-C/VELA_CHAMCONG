@@ -21,12 +21,12 @@ async function loadTeamAttendance() {
 
   try {
     // Query attendance records for this period + project
-    let attUrl=`attendance?check_date=gte.${startDate}&check_date=lte.${endDate}`;
+    let attUrl=`attendance?select=user_id,project_id,check_date,check_time,check_out,status&check_date=gte.${startDate}&check_date=lte.${endDate}&limit=5000&order=check_date`;
     if(projectId) attUrl+=`&project_id=eq.${projectId}`;
 
     // Query ALL active users (not filtered by project_id)
     // We'll determine who to show based on actual attendance data
-    let userUrl='users?is_active=eq.true&order=full_name';
+    let userUrl='users?is_active=eq.true&order=full_name&limit=500';
 
     // For site_admin without project filter: limit to their project
     if(!projectId && STATE.currentUser.role==='site_admin' && STATE.currentUser.project_id) {
@@ -140,6 +140,3 @@ function renderTeamTable(users,attByUser,dateList,el,month,year) {
 }
 
 // ── EXPORT EXCEL ──
-
-
-
