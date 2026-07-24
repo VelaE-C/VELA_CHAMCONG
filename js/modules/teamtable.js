@@ -21,7 +21,7 @@ async function loadTeamAttendance() {
 
   try {
     // Query attendance records for this period + project
-    let attUrl=`attendance?select=user_id,project_id,check_date,check_time,check_out,status&check_date=gte.${startDate}&check_date=lte.${endDate}&limit=5000&order=check_date`;
+    let attUrl=`attendance?select=user_id,project_id,check_date,check_time,check_out,status&check_date=gte.${startDate}&check_date=lte.${endDate}&order=check_date.asc,check_time.asc&limit=10000`;
     if(projectId) attUrl+=`&project_id=eq.${projectId}`;
 
     // Query ALL active users (not filtered by project_id)
