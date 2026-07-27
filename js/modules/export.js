@@ -184,7 +184,10 @@ async function exportTeamExcel() {
       const c=ws.getCell(rn,i+3);
       c.border=hBorder();
       if(rec?.status==='present'||rec?.status==='leave'){
-        const isBuCong = rec.is_adjusted && (rec.note||'').includes('[Bù công CHT duyệt]') && !rec.distance_m;
+        const isBuCong = rec.is_adjusted
+          && (rec.note||'').includes('[Bù công CHT duyệt]')
+          && !rec.distance_m
+          && !(rec.note||'').includes('[Bù checkout');
         if (isBuCong) {
           c.value='📋 Bù công';
           c.fill=hFill(ORANGE2);
