@@ -64,3 +64,4 @@ async function loadCurrentUser() {
 function isAdmin()      { return ['superadmin'].includes(STATE.currentUser?.role); }
 function isSiteAdmin()  { return ['superadmin','site_admin'].includes(STATE.currentUser?.role); }
 function canViewAdmin() { return isSiteAdmin(); }
+function isCHT() { return ['cht','site_admin','superadmin'].includes(STATE.currentUser?.role); }
