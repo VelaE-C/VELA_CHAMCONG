@@ -94,62 +94,162 @@ function renderApprovalCard(r) {
       <div style="font-size:13px;color:var(--gray8)">📝 ${r.reason}</div>
     </div>
 
-    <div style="margin-bottom:10px">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
-        color:var(--gray5);display:block;margin-bottom:4px">Ghi chú khi duyệt (tùy chọn)</label>
-      <textarea id="note-${r.id}" class="form-control" style="min-height:60px"
-        placeholder="VD: Xác nhận nhân viên có mặt tại công trường ngày này..."></textarea>
-    </div>
-
     <div style="display:flex;gap:8px">
       <button onclick="approveRequest('${r.id}', '${r.user_id}', '${r.project_id}', '${r.request_date}', '${r.request_type}')"
         class="btn btn-success" style="flex:1">✅ Duyệt</button>
-      <button onclick="rejectRequest('${r.id}')"
+      <button onclick="toggleReject('${r.id}')"
         class="btn btn-danger" style="flex:1">❌ Từ chối</button>
+    </div>
+
+    <!-- Lý do từ chối - chỉ hiện khi bấm Từ chối -->
+    <div id="reject-${r.id}" style="display:none;margin-top:8px">
+      <textarea id="note-${r.id}" class="form-control" style="min-height:60px"
+        placeholder="Nhập lý do từ chối..."></textarea>
+      <button onclick="rejectRequest('${r.id}')"
+        class="btn btn-danger" style="width:100%;margin-top:6px">Xác nhận từ chối</button>
     </div>
   </div>`;
 }
 
 // ── DUYỆT YÊU CẦU ──
 async function approveRequest(reqId, userId, projectId, reqDate, reqType) {
-  const note = document.getElementById(`note-${reqId}`)?.value.trim() || '';
+  const note = ''; // CHT không cần nhập lý do khi duyệt
   const card = document.getElementById(`req-${reqId}`);
 
   // Disable buttons
   card.querySelectorAll('button').forEach(b => b.disabled = true);
 
   try {
-    // 1. Kiểm tra đã có record attendance chưa
+    // 1. Kiểm tra record attendance hiện tại
     const existing = await sbFetch(
-      `attendance?user_id=eq.${userId}&project_id=eq.${projectId}&check_date=eq.${reqDate}&limit=1`
+      `attendance?user_id=eq.${userId}&check_date=eq.${reqDate}&limit=1`
     );
 
     let attendanceId = null;
+    const rec = existing[0] || null;
 
-    if (existing.length) {
-      // Có record → update note + is_adjusted
-      await sbFetch(`attendance?id=eq.${existing[0].id}`, {
+    // ── Trường hợp đã được bù công trước đó ──
+    if (rec && rec.is_adjusted && (rec.note||'').includes('[Bù công CHT duyệt]')) {
+      // Tìm tên CHT đã duyệt
+      const prevCHT = STATE.users.find(u => u.id === rec.adjusted_by_id) || null;
+      const prevName = prevCHT?.full_name || 'CHT khác';
+      card.querySelectorAll('button').forEach(b => b.disabled = false);
+      showToast(`⚠️ Đã được bù công bởi ${prevName} rồi`);
+      card.innerHTML = `<div class="alert alert-warning">
+        ⚠️ Yêu cầu này đã được duyệt và bù công trước đó.<br>
+        <span style="font-size:12px;color:var(--gray5)">Nếu cần thay đổi, vui lòng dùng tab Điều Chỉnh.</span>
+      </div>`;
+      // Vẫn cập nhật request → approved để dọn sạch pending
+      await sbFetch(`attendance_requests?id=eq.${reqId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: 'approved', reviewed_by: STATE.currentUser.id,
+          reviewed_at: new Date().toISOString(),
+          review_note: `[Đã bù công trước đó] ${note}`,
+          attendance_id: rec.id
+        })
+      });
+      return;
+    }
+
+    // ── Xử lý theo loại yêu cầu ──
+    if (reqType === 'missing') {
+      // Chưa chấm công
+      if (rec) {
+        // Đã có record thật (chấm bình thường) → chỉ thêm note, không đè data
+        await sbFetch(`attendance?id=eq.${rec.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            is_adjusted: true,
+            note: `[Bù công CHT duyệt - bổ sung] ${note}`
+          })
+        });
+        attendanceId = rec.id;
+        showToast('✅ Duyệt — đã bổ sung ghi chú (record gốc giữ nguyên)');
+      } else {
+        // Chưa có record → tạo mới
+        const created = await sbFetch('attendance', {
+          method: 'POST',
+          body: JSON.stringify({
+            user_id: userId, project_id: projectId,
+            check_date: reqDate, status: 'present',
+            is_adjusted: true,
+            note: `[Bù công CHT duyệt] ${note}`
+          })
+        });
+        attendanceId = created[0]?.id;
+        showToast('✅ Duyệt — đã tạo record bù công');
+      }
+
+    } else if (reqType === 'missing_out') {
+      // Quên check out
+      if (!rec) {
+        // Không có record checkin → không thể thêm checkout
+        card.querySelectorAll('button').forEach(b => b.disabled = false);
+        showToast('❌ Không tìm thấy record check in ngày này');
+        return;
+      }
+      if (rec.check_out) {
+        // Đã có checkout rồi
+        card.querySelectorAll('button').forEach(b => b.disabled = false);
+        const t = new Date(rec.check_out);
+        showToast(`⚠️ Đã có check out lúc ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')} rồi`);
+        card.innerHTML = `<div class="alert alert-warning">
+          ⚠️ Nhân viên đã có check out lúc <strong>${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}</strong> ngày này.<br>
+          <span style="font-size:12px;color:var(--gray5)">Nếu cần sửa, dùng tab Điều Chỉnh.</span>
+        </div>`;
+        return;
+      }
+      // Thêm check_out = thời điểm duyệt
+      await sbFetch(`attendance?id=eq.${rec.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          check_out: new Date().toISOString(),
+          is_adjusted: true,
+          note: `[Bù checkout CHT duyệt] ${note}`
+        })
+      });
+      attendanceId = rec.id;
+      showToast('✅ Duyệt — đã thêm check out');
+
+    } else if (reqType === 'wrong_time') {
+      // Chấm sai giờ → chỉ thêm note, giữ nguyên giờ (CHT không biết giờ đúng)
+      if (!rec) {
+        card.querySelectorAll('button').forEach(b => b.disabled = false);
+        showToast('❌ Không tìm thấy record chấm công ngày này');
+        return;
+      }
+      await sbFetch(`attendance?id=eq.${rec.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
           is_adjusted: true,
-          note: `[Bù công CHT duyệt] ${note}`
+          note: `[Xác nhận CHT - sai giờ] ${note}`
         })
       });
-      attendanceId = existing[0].id;
+      attendanceId = rec.id;
+      showToast('✅ Duyệt — đã xác nhận (giờ giữ nguyên)');
+
     } else {
-      // Chưa có record → tạo mới
-      const created = await sbFetch('attendance', {
-        method: 'POST',
-        body: JSON.stringify({
-          user_id:    userId,
-          project_id: projectId,
-          check_date: reqDate,
-          status:     'present',
-          is_adjusted: true,
-          note: `[Bù công CHT duyệt] ${note}`
-        })
-      });
-      attendanceId = created[0]?.id;
+      // Loại khác → xử lý như missing
+      if (!rec) {
+        const created = await sbFetch('attendance', {
+          method: 'POST',
+          body: JSON.stringify({
+            user_id: userId, project_id: projectId,
+            check_date: reqDate, status: 'present',
+            is_adjusted: true,
+            note: `[Bù công CHT duyệt] ${note}`
+          })
+        });
+        attendanceId = created[0]?.id;
+      } else {
+        await sbFetch(`attendance?id=eq.${rec.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ is_adjusted: true, note: `[Bù công CHT duyệt] ${note}` })
+        });
+        attendanceId = rec.id;
+      }
+      showToast('✅ Đã duyệt');
     }
 
     // 2. Cập nhật request → approved
@@ -164,8 +264,6 @@ async function approveRequest(reqId, userId, projectId, reqDate, reqType) {
       })
     });
 
-    showToast('✅ Đã duyệt — bảng công tự động cập nhật');
-
     // Remove card with animation
     card.style.opacity = '0.5';
     setTimeout(() => { card.remove(); }, 400);
@@ -173,6 +271,16 @@ async function approveRequest(reqId, userId, projectId, reqDate, reqType) {
   } catch(e) {
     card.querySelectorAll('button').forEach(b => b.disabled = false);
     showToast('❌ ' + e.message);
+  }
+}
+
+// ── TOGGLE FORM TỪ CHỐI ──
+function toggleReject(reqId) {
+  const el = document.getElementById(`reject-${reqId}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  if (el.style.display === 'block') {
+    document.getElementById(`note-${reqId}`)?.focus();
   }
 }
 
