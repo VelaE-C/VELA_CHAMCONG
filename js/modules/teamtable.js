@@ -21,7 +21,7 @@ async function loadTeamAttendance() {
 
   try {
     // Query attendance records for this period + project
-    let attUrl=`attendance?select=user_id,project_id,check_date,check_time,check_out,status&check_date=gte.${startDate}&check_date=lte.${endDate}&order=check_date.asc,check_time.asc&limit=10000`;
+    let attUrl=`attendance?select=user_id,project_id,check_date,check_time,check_out,status,is_adjusted,note,distance_m&check_date=gte.${startDate}&check_date=lte.${endDate}&order=check_date.asc,check_time.asc&limit=10000`;
     if(projectId) attUrl+=`&project_id=eq.${projectId}`;
 
     // Query ALL active users (not filtered by project_id)
@@ -33,7 +33,12 @@ async function loadTeamAttendance() {
       attUrl+=`&project_id=eq.${STATE.currentUser.project_id}`;
     }
 
-    const [allUsers, attRows] = await Promise.all([sbFetch(userUrl), sbFetch(attUrl)]);
+    // Lấy attendance với header Range để bypass Supabase row limit
+    const attHeaders = { 'Range-Unit': 'items', 'Range': '0-9999' };
+    const [allUsers, attRows] = await Promise.all([
+      sbFetch(userUrl),
+      sbFetch(attUrl, { headers: attHeaders })
+    ]);
 
     // Group attendance by user
     const attByUser={};
@@ -105,11 +110,20 @@ function renderTeamTable(users,attByUser,dateList,el,month,year) {
       let cell = '';
       if (r) {
         if (r.status === 'present' || r.status === 'leave') {
-          const tin = new Date(r.check_time);
-          const tinStr = `${tin.getHours()}:${String(tin.getMinutes()).padStart(2,'0')}`;
-          const toutStr = r.check_out ? (() => { const t=new Date(r.check_out); return `${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`; })() : '';
-          cell = `<div style="color:var(--green);font-size:10px;font-weight:600;line-height:1.3">${tinStr}</div>`
-               + (toutStr ? `<div style="color:var(--blue);font-size:10px;line-height:1.3">${toutStr}</div>` : '<div style="color:var(--gray5);font-size:9px">-</div>');
+          // Kiểm tra bù công
+          const isBuCong = r.is_adjusted && (r.note||'').includes('[Bù công CHT duyệt]') && !r.distance_m;
+          if (isBuCong) {
+            cell = `<div style="color:var(--amber);font-size:10px;font-weight:700;line-height:1.4;text-align:center">📋<br>Bù<br>công</div>`;
+          } else {
+            const tin = new Date(r.check_time);
+            const tinStr = `${tin.getHours()}:${String(tin.getMinutes()).padStart(2,'0')}`;
+            const toutStr = r.check_out ? (() => {
+              const t = new Date(r.check_out);
+              return `${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
+            })() : '';
+            cell = `<div style="color:var(--green);font-size:10px;font-weight:600;line-height:1.3">${tinStr}</div>`
+                 + (toutStr ? `<div style="color:var(--blue);font-size:10px;line-height:1.3">${toutStr}</div>` : '<div style="color:var(--gray5);font-size:9px">-</div>');
+          }
         } else if (r.status === 'absent') {
           cell = '<span style="color:var(--red);font-size:11px">❌</span>';
         } else {
