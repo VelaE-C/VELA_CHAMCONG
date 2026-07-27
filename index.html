@@ -414,6 +414,89 @@
         </div>
       </div>
 
+      <!-- ── PAGE: YÊU CẦU BÙ CÔNG (nhân viên gửi) ── -->
+      <div class="page" id="page-requests">
+        <div class="content-header">
+          <h2>📤 Yêu Cầu Bù Công</h2>
+          <p>Gửi yêu cầu bù công khi quên chấm hoặc chấm sai</p>
+        </div>
+
+        <!-- Form gửi yêu cầu -->
+        <div class="card">
+          <div class="card-title">Gửi yêu cầu mới</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Dự án</label>
+              <select id="reqProject" class="form-control">
+                <option value="">-- Chọn dự án --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ngày cần bù công</label>
+              <input type="date" id="reqDate" class="form-control">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Loại yêu cầu</label>
+            <select id="reqType" class="form-control">
+              <option value="missing">📋 Chưa chấm công (cả ngày)</option>
+              <option value="missing_out">🚪 Quên check out</option>
+              <option value="wrong_time">⏰ Chấm sai giờ</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Lý do <span style="color:var(--red)">*</span></label>
+            <textarea id="reqReason" class="form-control"
+              placeholder="VD: Điện thoại hết pin, quên chấm công sáng..."></textarea>
+          </div>
+          <div class="alert alert-warning" style="margin-bottom:12px">
+            ⚠️ Chỉ được gửi yêu cầu trong vòng <strong>7 ngày</strong> gần nhất.
+            Mỗi ngày/dự án chỉ có 1 yêu cầu pending.
+          </div>
+          <button class="btn btn-primary" id="reqSubmitBtn" onclick="submitRequest()" style="width:100%">
+            📤 Gửi yêu cầu
+          </button>
+        </div>
+
+        <!-- Danh sách yêu cầu của tôi -->
+        <div class="card">
+          <div class="card-title">Yêu cầu đã gửi</div>
+          <div id="myRequestList" class="empty-state">
+            <div class="empty-icon">📋</div>Chưa có yêu cầu nào
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAGE: PHÊ DUYỆT (CHT/Admin) ── -->
+      <div class="page" id="page-approvals">
+        <div class="content-header">
+          <h2>✅ Phê Duyệt Bù Công</h2>
+          <p>Duyệt hoặc từ chối yêu cầu bù công của nhân viên</p>
+        </div>
+
+        <!-- Pending requests -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="card-title" style="margin:0">⏳ Chờ duyệt</div>
+            <button onclick="loadPendingRequests()" class="btn btn-secondary btn-sm">🔄 Làm mới</button>
+          </div>
+          <div id="approvalList" class="empty-state">
+            <div class="empty-icon">✅</div>Không có yêu cầu nào đang chờ
+          </div>
+        </div>
+
+        <!-- History -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="card-title" style="margin:0">📋 Lịch sử đã duyệt</div>
+            <button onclick="loadApprovalHistory()" class="btn btn-secondary btn-sm">Xem lịch sử</button>
+          </div>
+          <div id="approvalHistory" class="empty-state">
+            <div class="empty-icon">📋</div>Nhấn "Xem lịch sử" để tải
+          </div>
+        </div>
+      </div>
+
     </main><!-- /content -->
   </div><!-- /app-shell -->
 
@@ -524,6 +607,8 @@
 <script src="js/modules/quanso.js"></script>
 <script src="js/modules/hrdocs.js"></script>
 <script src="js/modules/warnings.js"></script>
+<script src="js/modules/requests.js"></script>
+<script src="js/modules/approvals.js"></script>
 <script src="js/main.js"></script>
 
 <!-- SW unregister (remove cache issues) -->
