@@ -187,7 +187,7 @@ async function exportTeamExcel() {
         const isBuCong = rec.is_adjusted && (rec.note||'').includes('[Bù công CHT duyệt]') && !rec.distance_m;
         if (isBuCong) {
           c.value='📋 Bù công';
-          c.fill=hFill(LAMBER);
+          c.fill=hFill(ORANGE2);
           c.font={name:'Arial',size:8,bold:true,color:{argb:'FF'+ORANGE}};
           c.alignment={horizontal:'center',vertical:'middle'};
         } else {
