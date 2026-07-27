@@ -17,7 +17,7 @@ async function initRequests() {
       sel.innerHTML += `<option value="${p.id}" data-code="${p.code}">${p.code} — ${p.name}</option>`;
     });
     // Hiện CHT khi chọn dự án
-    sel.addEventListener('change', () => showCHTForProject(sel.value));
+    sel.onchange = () => showCHTForProject(sel.value);
   }
 
   // Default date = hôm nay
@@ -39,50 +39,72 @@ async function showCHTForProject(projectId) {
   if (!projectId) { el.style.display = 'none'; return; }
 
   el.style.display = 'block';
-  el.innerHTML = '<span style="color:var(--gray5);font-size:12px">⏳ Đang tìm CHT...</span>';
 
-  try {
-    // Tìm CHT được gán dự án này
-    const chts = STATE.users.filter(u => {
-      if (!['cht','site_admin','superadmin'].includes(u.role)) return false;
-      if (!u.is_active) return false;
-      if (u.project_scope === 'all') return true;
-      if (u.project_scope === 'fixed') return u.project_id === projectId;
-      if (u.project_scope === 'multi') return (u.allowed_projects||[]).includes(projectId);
-      return false;
-    });
+  const proj = STATE.projects.find(p => p.id === projectId);
 
-    if (!chts.length) {
-      el.innerHTML = `<div class="alert alert-warning" style="margin:0;padding:10px 14px">
-        ⚠️ Chưa có CHT nào được gán cho dự án này. Liên hệ Admin.
-      </div>`;
-      return;
-    }
-
-    const proj = STATE.projects.find(p => p.id === projectId);
-    el.innerHTML = `<div class="alert alert-info" style="margin:0;padding:10px 14px">
-      <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--blue)">
-        👷 CHT phụ trách ${proj?.code||''}:
-      </div>
-      ${chts.map(u => `
-        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-          <div style="width:28px;height:28px;border-radius:50%;background:var(--amber);
-            display:flex;align-items:center;justify-content:center;
-            font-size:12px;font-weight:700;color:white;flex-shrink:0">
-            ${u.full_name.charAt(0)}
-          </div>
-          <div>
-            <div style="font-size:13px;font-weight:600;color:var(--gray8)">${u.full_name}</div>
-            <div style="font-size:11px;color:var(--gray5)">${u.position||''} · ${u.phone||''}</div>
-          </div>
-        </div>`).join('')}
-      <div style="font-size:11px;color:var(--gray5);margin-top:8px">
-        Yêu cầu của bạn sẽ được gửi đến CHT trên để duyệt.
+  // Nếu người dùng hiện tại là superadmin/site_admin → tự duyệt
+  if (['superadmin','site_admin'].includes(STATE.currentUser?.role)) {
+    el.innerHTML = `<div class="alert alert-success" style="margin:0;padding:10px 14px">
+      <div style="font-size:13px;font-weight:600;color:var(--green)">
+        ✅ Bạn là Admin — yêu cầu sẽ tự động được duyệt bởi bạn hoặc admin khác.
       </div>
     </div>`;
-  } catch(e) {
-    el.style.display = 'none';
+    return;
   }
+
+  // Tìm CHT được gán dự án này (trừ chính người dùng nếu là CHT)
+  const chts = STATE.users.filter(u => {
+    if (!['cht','site_admin','superadmin'].includes(u.role)) return false;
+    if (!u.is_active) return false;
+    if (u.id === STATE.currentUser?.id) return false; // Không hiện chính mình
+    if (u.project_scope === 'all') return true;
+    if (u.project_scope === 'fixed') return u.project_id === projectId;
+    if (u.project_scope === 'multi') return (u.allowed_projects||[]).includes(projectId);
+    return false;
+  });
+
+  // Nếu là CHT tự gửi cho dự án mình
+  const selfIsCHT = STATE.currentUser?.role === 'cht';
+
+  if (!chts.length && !selfIsCHT) {
+    el.innerHTML = `<div class="alert alert-warning" style="margin:0;padding:10px 14px">
+      ⚠️ Chưa có CHT nào được gán cho dự án này. Liên hệ Admin.
+    </div>`;
+    return;
+  }
+
+  if (selfIsCHT && !chts.length) {
+    el.innerHTML = `<div class="alert alert-info" style="margin:0;padding:10px 14px">
+      <div style="font-size:13px;color:var(--blue)">
+        🏗 Bạn là CHT của dự án này — bạn có thể tự duyệt yêu cầu của mình trong tab <strong>Phê Duyệt</strong>.
+      </div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="alert alert-info" style="margin:0;padding:10px 14px">
+    <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--blue)">
+      👷 CHT phụ trách ${proj?.code||''}:
+    </div>
+    ${chts.map(u => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--amber);
+          display:flex;align-items:center;justify-content:center;
+          font-size:13px;font-weight:700;color:white;flex-shrink:0">
+          ${u.full_name.charAt(0)}
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--gray8)">${u.full_name}</div>
+          <div style="font-size:11px;color:var(--gray5)">
+            ${u.position||''} ${u.phone ? '· '+u.phone : ''}
+          </div>
+        </div>
+        <span class="badge badge-amber" style="font-size:10px;margin-left:auto">CHT</span>
+      </div>`).join('')}
+    <div style="font-size:11px;color:var(--gray5);margin-top:4px;padding-top:8px;border-top:1px solid rgba(37,99,235,.1)">
+      📤 Yêu cầu sẽ gửi đến CHT trên để duyệt
+    </div>
+  </div>`;
 }
 
 // ── GỬI YÊU CẦU ──
