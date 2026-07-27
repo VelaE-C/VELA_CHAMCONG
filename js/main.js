@@ -17,7 +17,28 @@ const NAV_PAGES = {
   warnings:   { label: 'Cảnh Báo',        icon: '⚠️', adminOnly: true,  role: null },
 };
 
+// Phân quyền truy cập từng page
+const PAGE_PERMISSIONS = {
+  checkin:   () => true,
+  mytable:   () => true,
+  requests:  () => true,
+  quanso:    () => true,
+  approvals: () => isCHT() || canViewAdmin(),
+  teamtable: () => canViewAdmin(),
+  projects:  () => canViewAdmin(),
+  users:     () => canViewAdmin(),
+  adjust:    () => canViewAdmin(),
+  warnings:  () => canViewAdmin(),
+};
+
 function navigate(pageId) {
+  // Kiểm tra quyền truy cập
+  const check = PAGE_PERMISSIONS[pageId];
+  if (check && !check()) {
+    showToast('❌ Bạn không có quyền truy cập trang này');
+    return;
+  }
+
   // Hide all pages
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   const target = document.getElementById(`page-${pageId}`);
