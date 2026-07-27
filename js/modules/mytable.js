@@ -25,7 +25,7 @@ async function loadMyAttendance() {
   const startDate=`${prevYear}-${String(prevMonth).padStart(2,'0')}-26`;
   const endDate=`${year}-${String(month).padStart(2,'0')}-25`;
   try {
-    const rows=await sbFetch(`attendance?user_id=eq.${STATE.currentUser.id}&check_date=gte.${startDate}&check_date=lte.${endDate}&order=check_date`);
+    const rows=await sbFetch(`attendance?select=*&user_id=eq.${STATE.currentUser.id}&check_date=gte.${startDate}&check_date=lte.${endDate}&order=check_date`);
     STATE.lastAttData={rows,month,year,user:STATE.currentUser};
     renderMyTable(rows,month,year);
   } catch(e) { el.innerHTML='<div class="empty-state">❌ '+e.message+'</div>'; }
@@ -57,11 +57,18 @@ function renderMyTable(rows,month,year) {
     const ct=r?new Date(r.check_time):null;
     const proj=STATE.projects.find(p=>p.id===r?.project_id);
     const dLabel=`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
-    tableRows+=`<tr style="">
-      <td style="font-family:'JetBrains Mono',monospace">${dLabel}</td>
-      <td>${DAYS_VI[dt.getDay()]}</td>
-      <td>${r?`<span class="badge ${bClass}">${bLabel}</span>`:(isWe?'<span style="color:var(--gray5);font-size:11px">Nghỉ</span>':'<span class="badge badge-red">— Chưa có</span>')}</td>
-      <td style="font-family:'JetBrains Mono',monospace;font-size:12px">${ct?`${ct.getHours()}:${String(ct.getMinutes()).padStart(2,'0')}`:'—'}</td>
+    const cout = r?.check_out ? new Date(r.check_out) : null;
+    const coutVN = cout ? new Date(cout.getTime() + 7*3600000) : null;
+    const ctVN   = ct   ? new Date(ct.getTime()   + 7*3600000) : null;
+    const cinStr  = ctVN   ? `${ctVN.getUTCHours()}:${String(ctVN.getUTCMinutes()).padStart(2,'0')}`   : '—';
+    const coutStr = coutVN ? `${coutVN.getUTCHours()}:${String(coutVN.getUTCMinutes()).padStart(2,'0')}` : '<span style="color:var(--gray3)">—</span>';
+    const isToday = dateStr === localDateStr();
+    tableRows+=`<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-weight:600">${dLabel}</td>
+      <td style="color:${dt.getDay()===0?'var(--amber)':'var(--gray5)'}">${DAYS_VI[dt.getDay()]}</td>
+      <td>${r?`<span class="badge ${bClass}">${bLabel}</span>`:'<span class="badge badge-red">— Chưa có</span>'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--green);font-weight:600">${cinStr}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--blue)">${coutStr}</td>
       <td style="font-size:12px;color:var(--gray5)">${r?.distance_m?r.distance_m+'m':'—'}</td>
       <td style="font-size:12px;color:var(--gray5)">${proj?proj.code:'—'}</td>
     </tr>`;
@@ -73,6 +80,6 @@ function renderMyTable(rows,month,year) {
     <div class="stat-card"><div class="stat-value" style="color:var(--blue)">${leave}</div><div class="stat-label">Nghỉ phép</div></div>
     <div class="stat-card"><div class="stat-value" style="color:var(--amber)">${totalDays-present-absent-leave}</div><div class="stat-label">Chưa có DL</div></div>`;
   document.getElementById('myTableContent').innerHTML=`<table>
-    <thead><tr><th>#</th><th>Thứ</th><th>Trạng thái</th><th>Giờ chấm</th><th>Khoảng cách</th><th>Dự án</th></tr></thead>
+    <thead><tr><th>Ngày</th><th>Thứ</th><th>Trạng thái</th><th>Check In</th><th>Check Out</th><th>Khoảng cách</th><th>Dự án</th></tr></thead>
     <tbody>${tableRows}</tbody></table>`;
 }
