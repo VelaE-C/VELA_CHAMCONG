@@ -184,14 +184,22 @@ async function exportTeamExcel() {
       const c=ws.getCell(rn,i+3);
       c.border=hBorder();
       if(rec?.status==='present'||rec?.status==='leave'){
-        const tin=new Date(rec.check_time);
-        const tinStr=tin.getHours()+':'+String(tin.getMinutes()).padStart(2,'0');
-        const tout=rec.check_out?new Date(rec.check_out):null;
-        const toutStr=tout?tout.getHours()+':'+String(tout.getMinutes()).padStart(2,'0'):'—';
-        c.value=tinStr+'\n'+toutStr;
-        c.fill=hFill(rec.status==='leave'?BLUE2:GREEN2);
-        c.font={name:'Arial',size:8,color:{argb:'FF'+TEXT}};
-        c.alignment={horizontal:'center',vertical:'middle',wrapText:true};
+        const isBuCong = rec.is_adjusted && (rec.note||'').includes('[Bù công CHT duyệt]') && !rec.distance_m;
+        if (isBuCong) {
+          c.value='📋 Bù công';
+          c.fill=hFill(LAMBER);
+          c.font={name:'Arial',size:8,bold:true,color:{argb:'FF'+ORANGE}};
+          c.alignment={horizontal:'center',vertical:'middle'};
+        } else {
+          const tin=new Date(rec.check_time);
+          const tinStr=tin.getHours()+':'+String(tin.getMinutes()).padStart(2,'0');
+          const tout=rec.check_out?new Date(rec.check_out):null;
+          const toutStr=tout?tout.getHours()+':'+String(tout.getMinutes()).padStart(2,'0'):'—';
+          c.value=tinStr+'\n'+toutStr;
+          c.fill=hFill(rec.status==='leave'?BLUE2:GREEN2);
+          c.font={name:'Arial',size:8,color:{argb:'FF'+TEXT}};
+          c.alignment={horizontal:'center',vertical:'middle',wrapText:true};
+        }
         total++;
       } else if(rec?.status==='absent'){
         c.value='Vắng'; c.fill=hFill(RED2);
