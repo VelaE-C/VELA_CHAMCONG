@@ -5,14 +5,16 @@
 
 // ── Navigation ──
 const NAV_PAGES = {
-  checkin:    { label: 'Chấm Công',       icon: '⏱', adminOnly: false },
-  mytable:    { label: 'Bảng Công Tôi',   icon: '📋', adminOnly: false },
-  teamtable:  { label: 'Bảng Công Nhóm',  icon: '👥', adminOnly: true  },
-  projects:   { label: 'Dự Án',           icon: '🗂', adminOnly: true  },
-  users:      { label: 'Nhân Sự',         icon: '👤', adminOnly: true  },
-  warnings:   { label: 'Cảnh Báo',        icon: '⚠️', adminOnly: true  },
-  adjust:     { label: 'Điều Chỉnh',      icon: '✏️', adminOnly: true  },
-  quanso:     { label: 'Báo Cáo Quân Số', icon: '👷', adminOnly: false },
+  checkin:    { label: 'Chấm Công',       icon: '⏱', adminOnly: false, role: null },
+  mytable:    { label: 'Bảng Công Tôi',   icon: '📋', adminOnly: false, role: null },
+  requests:   { label: 'Bù Công',         icon: '📤', adminOnly: false, role: null },
+  teamtable:  { label: 'Bảng Công Nhóm',  icon: '👥', adminOnly: true,  role: null },
+  approvals:  { label: 'Phê Duyệt',       icon: '✅', adminOnly: false, role: 'cht' },
+  quanso:     { label: 'Báo Cáo Quân Số', icon: '👷', adminOnly: false, role: null },
+  projects:   { label: 'Dự Án',           icon: '🗂', adminOnly: true,  role: null },
+  users:      { label: 'Nhân Sự',         icon: '👤', adminOnly: true,  role: null },
+  adjust:     { label: 'Điều Chỉnh',      icon: '✏️', adminOnly: true,  role: null },
+  warnings:   { label: 'Cảnh Báo',        icon: '⚠️', adminOnly: true,  role: null },
 };
 
 function navigate(pageId) {
@@ -45,6 +47,8 @@ function navigate(pageId) {
     warnings:  () => loadWarnings(),
     users:     () => { renderUserList(); },
     projects:  () => { renderProjectList(); },
+    requests:  () => initRequests(),
+    approvals: () => initApprovals(),
   };
   if (hooks[pageId]) hooks[pageId]();
 }
@@ -56,13 +60,22 @@ function buildNav() {
   const admin     = canViewAdmin();
 
   const groups = [
-    { label: 'CHẤM CÔNG', pages: ['checkin', 'mytable', 'teamtable', 'quanso'] },
+    { label: 'CHẤM CÔNG', pages: ['checkin', 'mytable', 'requests', 'teamtable', 'quanso'] },
+    { label: 'DUYỆT CÔNG', pages: ['approvals'] },
     { label: 'QUẢN LÝ',   pages: ['projects', 'users', 'adjust', 'warnings'] },
   ];
 
   let sidebarHtml = '';
   groups.forEach(g => {
-    const visiblePages = g.pages.filter(p => !NAV_PAGES[p].adminOnly || admin);
+    const visiblePages = g.pages.filter(p => {
+      const page = NAV_PAGES[p];
+      if (!page) return false;
+      // 'cht' role: show approvals page
+      if (page.role === 'cht') return isCHT() || admin;
+      // admin-only pages
+      if (page.adminOnly) return admin;
+      return true;
+    });
     if (!visiblePages.length) return;
     sidebarHtml += `<div class="sidebar-group-label">${g.label}</div>`;
     visiblePages.forEach(p => {
@@ -75,12 +88,16 @@ function buildNav() {
   if (sidebarEl) sidebarEl.innerHTML = sidebarHtml;
 
   // Bottom nav: up to 4 main + More
+  const isCht = isCHT();
   const bottomPages = admin
     ? ['checkin', 'mytable', 'teamtable', 'users', 'quanso']
-    : ['checkin', 'mytable', 'quanso'];
+    : isCht
+      ? ['checkin', 'mytable', 'requests', 'approvals', 'quanso']
+      : ['checkin', 'mytable', 'requests', 'quanso'];
   const bottomLabels = {
     checkin: 'Chấm công', mytable: 'Bảng công', teamtable: 'Nhóm',
-    users: 'Nhân sự', quanso: 'Quân số'
+    users: 'Nhân sự', quanso: 'Quân số',
+    requests: 'Bù công', approvals: 'Phê duyệt'
   };
   if (bottomEl) {
     bottomEl.innerHTML = bottomPages.map(p =>
