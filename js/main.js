@@ -110,15 +110,20 @@ function buildNav() {
 
   // Bottom nav: up to 4 main + More
   const isCht = isCHT();
+  // Mobile bottom nav: luôn hiện Bù công + Phê duyệt (nếu có quyền)
   const bottomPages = admin
-    ? ['checkin', 'mytable', 'teamtable', 'users', 'quanso']
+    ? ['checkin', 'mytable', 'requests', 'approvals', 'teamtable']
     : isCht
       ? ['checkin', 'mytable', 'requests', 'approvals', 'quanso']
       : ['checkin', 'mytable', 'requests', 'quanso'];
   const bottomLabels = {
-    checkin: 'Chấm công', mytable: 'Bảng công', teamtable: 'Nhóm',
-    users: 'Nhân sự', quanso: 'Quân số',
-    requests: 'Bù công', approvals: 'Phê duyệt'
+    checkin:   'Chấm công',
+    mytable:   'Bảng công',
+    teamtable: 'Nhóm',
+    users:     'Nhân sự',
+    quanso:    'Quân số',
+    requests:  'Bù công',
+    approvals: 'Phê duyệt'
   };
   if (bottomEl) {
     bottomEl.innerHTML = bottomPages.map(p =>
