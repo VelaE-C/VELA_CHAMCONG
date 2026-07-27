@@ -161,6 +161,19 @@ function openEditUserModal(userId) {
   document.getElementById('editUserModal').dataset.userId = userId;
   document.getElementById('deactivateBtn').textContent = u.is_active ? 'Vô hiệu hóa' : '✅ Kích hoạt lại';
 
+  // Phân quyền: ẩn role superadmin nếu người dùng không phải superadmin
+  const roleSelEdit = document.getElementById('editRole');
+  if (roleSelEdit) {
+    // Reset options
+    roleSelEdit.innerHTML = `
+      <option value="employee">👷 Nhân viên</option>
+      <option value="cht">🏗 CHT (Chỉ huy trưởng)</option>
+      <option value="site_admin">🛡 Admin công trình</option>
+      ${STATE.currentUser?.role === 'superadmin' ? '<option value="superadmin">🔑 Super Admin</option>' : ''}
+    `;
+    roleSelEdit.value = u.role || 'employee';
+  }
+
   document.getElementById('editUserModal').style.display = 'block';
   document.body.style.overflow = 'hidden';
   // Load PDF docs
@@ -396,4 +409,3 @@ async function deactivateUser(id, name) {
     await loadUsers();
   } catch(e) { showToast('❌ '+e.message); }
 }
-
