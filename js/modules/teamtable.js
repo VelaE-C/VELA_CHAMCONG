@@ -111,7 +111,10 @@ function renderTeamTable(users,attByUser,dateList,el,month,year) {
       if (r) {
         if (r.status === 'present' || r.status === 'leave') {
           // Kiểm tra bù công
-          const isBuCong = r.is_adjusted && (r.note||'').includes('[Bù công CHT duyệt]') && !r.distance_m;
+          const isBuCong = r.is_adjusted
+            && (r.note||'').includes('[Bù công CHT duyệt]')
+            && !r.distance_m
+            && !(r.note||'').includes('[Bù checkout');
           if (isBuCong) {
             cell = `<div style="color:var(--amber);font-size:10px;font-weight:700;line-height:1.4;text-align:center">📋<br>Bù<br>công</div>`;
           } else {
