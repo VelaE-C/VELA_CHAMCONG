@@ -318,7 +318,7 @@ async function loadApprovalHistory() {
   showLoading('approvalHistory');
   try {
     const rows = await sbFetch(
-      `attendance_requests?status=neq.pending&order=reviewed_at.desc&limit=50`
+      `attendance_requests?status=neq.pending&reviewed_by=eq.${STATE.currentUser.id}&order=reviewed_at.desc&limit=100`
     );
     if (!rows.length) { showEmpty('approvalHistory', '📋', 'Chưa có lịch sử'); return; }
 
