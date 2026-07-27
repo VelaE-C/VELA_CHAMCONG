@@ -60,8 +60,13 @@ function renderMyTable(rows,month,year) {
     const cout   = r?.check_out ? new Date(r.check_out) : null;
     const coutVN = cout ? new Date(cout.getTime() + 7*3600000) : null;
     const ctVN   = ct   ? new Date(ct.getTime()   + 7*3600000) : null;
-    const cinStr  = ctVN   ? `${ctVN.getUTCHours()}:${String(ctVN.getUTCMinutes()).padStart(2,'0')}`   : '—';
-    const coutStr = coutVN ? `${coutVN.getUTCHours()}:${String(coutVN.getUTCMinutes()).padStart(2,'0')}` : '—';
+    // Nếu is_adjusted=true và note có "[Bù công CHT duyệt]" → hiện badge bù công
+    const isBuCong = r?.is_adjusted && (r?.note||'').includes('[Bù công CHT duyệt]') && !r?.distance_m;
+    const cinStr  = isBuCong
+      ? '<span style="color:var(--amber);font-size:11px;font-weight:700">📋 Bù công</span>'
+      : (ctVN ? `${ctVN.getUTCHours()}:${String(ctVN.getUTCMinutes()).padStart(2,'0')}` : '—');
+    const coutStr = isBuCong ? '—'
+      : (coutVN ? `${coutVN.getUTCHours()}:${String(coutVN.getUTCMinutes()).padStart(2,'0')}` : '—');
     const isMobileRow = window.innerWidth < 1024;
     const rowBg = dateList.indexOf(dt) % 2 === 0 ? 'white' : 'var(--gray1)';
     const isSun = dt.getDay() === 0;
