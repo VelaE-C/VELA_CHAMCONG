@@ -118,12 +118,13 @@ function renderUserListData(users) {
 // ── ADD USER FORM TOGGLE ──
 function toggleAddUserForm() {
   const body = document.getElementById('addUserFormBody');
-  const btn = document.getElementById('addUserToggleBtn');
+  const btn  = document.getElementById('addUserToggleBtn');
+  if (!body || !btn) return;
   const isOpen = body.style.display !== 'none';
   body.style.display = isOpen ? 'none' : 'block';
   btn.textContent = isOpen ? '+ Thêm mới' : '− Đóng';
-  btn.style.background = isOpen ? 'var(--accent)' : 'var(--gray1)';
-  btn.style.color = isOpen ? 'var(--bg)' : 'var(--text2)';
+  btn.style.background = isOpen ? '' : 'var(--gray2)';
+  btn.style.color      = isOpen ? '' : 'var(--gray7)';
 }
 
 // ── EDIT USER MODAL ──
