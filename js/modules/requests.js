@@ -16,6 +16,8 @@ async function initRequests() {
     getAccessibleProjects().forEach(p => {
       sel.innerHTML += `<option value="${p.id}" data-code="${p.code}">${p.code} — ${p.name}</option>`;
     });
+    // Hiện CHT khi chọn dự án
+    sel.addEventListener('change', () => showCHTForProject(sel.value));
   }
 
   // Default date = hôm nay
@@ -28,6 +30,59 @@ async function initRequests() {
   }
 
   await loadMyRequests();
+}
+
+// ── HIỆN CHT CỦA DỰ ÁN ──
+async function showCHTForProject(projectId) {
+  const el = document.getElementById('reqCHTInfo');
+  if (!el) return;
+  if (!projectId) { el.style.display = 'none'; return; }
+
+  el.style.display = 'block';
+  el.innerHTML = '<span style="color:var(--gray5);font-size:12px">⏳ Đang tìm CHT...</span>';
+
+  try {
+    // Tìm CHT được gán dự án này
+    const chts = STATE.users.filter(u => {
+      if (!['cht','site_admin','superadmin'].includes(u.role)) return false;
+      if (!u.is_active) return false;
+      if (u.project_scope === 'all') return true;
+      if (u.project_scope === 'fixed') return u.project_id === projectId;
+      if (u.project_scope === 'multi') return (u.allowed_projects||[]).includes(projectId);
+      return false;
+    });
+
+    if (!chts.length) {
+      el.innerHTML = `<div class="alert alert-warning" style="margin:0;padding:10px 14px">
+        ⚠️ Chưa có CHT nào được gán cho dự án này. Liên hệ Admin.
+      </div>`;
+      return;
+    }
+
+    const proj = STATE.projects.find(p => p.id === projectId);
+    el.innerHTML = `<div class="alert alert-info" style="margin:0;padding:10px 14px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--blue)">
+        👷 CHT phụ trách ${proj?.code||''}:
+      </div>
+      ${chts.map(u => `
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--amber);
+            display:flex;align-items:center;justify-content:center;
+            font-size:12px;font-weight:700;color:white;flex-shrink:0">
+            ${u.full_name.charAt(0)}
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--gray8)">${u.full_name}</div>
+            <div style="font-size:11px;color:var(--gray5)">${u.position||''} · ${u.phone||''}</div>
+          </div>
+        </div>`).join('')}
+      <div style="font-size:11px;color:var(--gray5);margin-top:8px">
+        Yêu cầu của bạn sẽ được gửi đến CHT trên để duyệt.
+      </div>
+    </div>`;
+  } catch(e) {
+    el.style.display = 'none';
+  }
 }
 
 // ── GỬI YÊU CẦU ──
