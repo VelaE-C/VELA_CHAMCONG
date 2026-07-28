@@ -81,7 +81,7 @@ function editProject(id) {
   document.getElementById('pjLng').value = p.lng;
   document.getElementById('pjRadius').value = p.radius_m;
   document.getElementById('projectFormTitle').textContent = 'Chỉnh sửa dự án';
-  document.getElementById('btnCancelEdit').style.display = 'inline-block';
+  const _bce = document.getElementById('btnCancelEdit'); if(_bce) _bce.style.display = 'inline-block';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -90,7 +90,7 @@ function cancelEditProject() {
   ['pjCode','pjName','pjAddr','pjLat','pjLng'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pjRadius').value = 250;
   document.getElementById('projectFormTitle').textContent = 'Thêm dự án mới';
-  document.getElementById('btnCancelEdit').style.display = 'none';
+  const _bce2 = document.getElementById('btnCancelEdit'); if(_bce2) _bce2.style.display = 'none';
 }
 
 async function deleteProject(id, name) {
