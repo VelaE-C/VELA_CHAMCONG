@@ -244,7 +244,10 @@
             </div>
             <div class="form-group" id="fixedProjectRow"><label class="form-label">Dự án cố định</label><select id="hrProject" class="form-control"><option value="">-- Chọn dự án --</option></select></div>
             <div class="form-group" id="multiProjectRow" style="display:none"><label class="form-label">Danh sách dự án (giữ Ctrl để chọn nhiều)</label><select id="hrAllowedProjects" class="form-control" multiple style="height:100px"></select></div>
-            <button class="btn btn-primary" id="btnSaveUser" onclick="saveUser()">Thêm nhân sự</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary" style="flex:1" id="btnSaveUser" onclick="saveUser()">Thêm nhân sự</button>
+              <button class="btn btn-secondary" id="btnCancelUser" style="display:none" onclick="toggleAddUserForm()">Hủy</button>
+            </div>
             <div style="font-size:12px;color:var(--gray5);text-align:center;margin-top:8px">💡 Sau khi thêm, cửa sổ chỉnh sửa sẽ tự mở để upload hồ sơ PDF</div>
             <input type="hidden" id="editUserId">
           </div>
