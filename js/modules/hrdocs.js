@@ -7,7 +7,7 @@ let currentHRUserId = null;
 
 function openHRDocs(userId, userName) {
   currentHRUserId = userId;
-  document.getElementById('hrDocSection').style.display = 'block';
+  const _hds = document.getElementById('hrDocSection'); if(_hds) _hds.style.display = 'block';
   document.getElementById('hrDocUserName').textContent = `👤 ${userName}`;
   document.getElementById('hrDocSection').scrollIntoView({ behavior: 'smooth' });
   clearDocForm();
@@ -15,7 +15,7 @@ function openHRDocs(userId, userName) {
 }
 
 function closeHRDocs() {
-  document.getElementById('hrDocSection').style.display = 'none';
+  const _hds2 = document.getElementById('hrDocSection'); if(_hds2) _hds2.style.display = 'none';
   currentHRUserId = null;
 }
 
@@ -26,8 +26,8 @@ function handleFileSelect(e) {
 
 function handleFileDrop(e) {
   e.preventDefault();
-  document.getElementById('dropZone').style.borderColor = 'var(--gray2)';
-  document.getElementById('dropZone').style.background = '';
+  const _dz = document.getElementById('dropZone'); if(_dz) _dz.style.borderColor = 'var(--gray2)';
+  const _dz2 = document.getElementById('dropZone'); if(_dz2) _dz2.style.background = '';
   const file = e.dataTransfer.files[0];
   if (file) {
     document.getElementById('docFile').files = e.dataTransfer.files;
