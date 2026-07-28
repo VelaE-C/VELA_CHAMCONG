@@ -343,7 +343,7 @@ function editUser(id) {
     Array.from(sel.options).forEach(o => { o.selected = u.allowed_projects.includes(o.value); });
   }
   document.getElementById('btnSaveUser').textContent = 'Lưu thay đổi';
-  document.getElementById('btnCancelUser').style.display = 'inline-block';
+  const _bcu = document.getElementById('btnCancelUser'); if(_bcu) _bcu.style.display = 'inline-block';
   document.querySelector('#tab-hrprofile .card-title').textContent = 'Chỉnh sửa nhân sự';
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -356,7 +356,7 @@ function cancelEditUser() {
   document.getElementById('hrProject').value = '';
   onScopeChange();
   document.getElementById('btnSaveUser').textContent = 'Thêm nhân sự';
-  document.getElementById('btnCancelUser').style.display = 'none';
+  const _bcu2 = document.getElementById('btnCancelUser'); if(_bcu2) _bcu2.style.display = 'none';
   document.querySelector('#tab-hrprofile .card-title').textContent = 'Thêm nhân sự mới';
 }
 
