@@ -5,8 +5,18 @@
 // ============================================================
 
 let _lsProjects = [];   // { id, code, name } — danh sách dự án (Supabase A)
-let _lsRows = [];       // dữ liệu attendance_logs (Supabase B) sau khi lọc
+let _lsRows = [];       // dữ liệu attendance_logs (Supabase B) sau khi lọc (chưa gộp — dùng cho timeline)
 let _lsInited = false;
+let _lsChart = null;    // Chart.js instance của timeline
+
+const LS_CAT_COLORS = {
+  qty_ketcau:    '#1A2B4A', // navy
+  qty_hoanthien: '#0D9488', // teal
+  qty_mep:       '#D97706', // amber
+  qty_congnhat:  '#2563EB', // blue
+  qty_khac:      '#F97316', // orange
+};
+const LS_SNAP_COLORS = ['#1A2B4A','#2563EB','#0D9488','#16A34A','#D97706','#DC2626','#F97316','#7C3AED','#0369A1','#92400E'];
 
 async function initLaborSummary() {
   const today = localDateStr(new Date());
@@ -16,9 +26,13 @@ async function initLaborSummary() {
   if (fromEl && !fromEl.value) fromEl.value = firstOfMonth;
   if (toEl && !toEl.value)     toEl.value   = today;
 
+  const snapEl = document.getElementById('lsSnapDate');
+  if (snapEl && !snapEl.value) snapEl.value = today;
+
   if (!_lsInited) {
     await lsLoadProjects();
     _lsInited = true;
+    lsRenderSnapshot(); // tự động xem thẻ báo cáo hôm nay khi vào tab lần đầu
   }
 }
 
@@ -94,10 +108,12 @@ async function lsApplyFilter() {
 function lsRenderResult(dateFrom, dateTo, laborType) {
   const resultArea = document.getElementById('lsResultArea');
   const exportBtn = document.getElementById('lsExportBtn');
+  const trendCard = document.getElementById('lsTrendCard');
 
   if (_lsRows.length === 0) {
     resultArea.innerHTML = '<div class="card"><div class="empty-state"><div class="empty-icon">📊</div>Không có dữ liệu trong khoảng thời gian đã chọn</div></div>';
     exportBtn.disabled = true;
+    if (trendCard) trendCard.style.display = 'none';
     return;
   }
 
@@ -186,6 +202,16 @@ function lsRenderResult(dateFrom, dateTo, laborType) {
   `;
 
   exportBtn.disabled = false;
+
+  // Cập nhật dropdown chọn dự án cho Timeline + vẽ lại
+  if (trendCard) {
+    trendCard.style.display = '';
+    const sel = document.getElementById('lsTrendProject');
+    const curVal = sel.value;
+    sel.innerHTML = projectRows.map(p => `<option value="${p.code}">${p.code}</option>`).join('');
+    sel.value = projectRows.some(p => p.code === curVal) ? curVal : projectRows[0].code;
+    lsRenderTrendChart();
+  }
 }
 
 function lsFmtDate(iso) {
@@ -228,5 +254,172 @@ async function lsExportPDF() {
   } catch (e) {
     console.error(e);
     showToast('❌ Lỗi khi xuất PDF');
+  }
+}
+
+// ── Timeline theo dự án (line tổng CN + bar 5 loại) ──
+function lsRenderTrendChart() {
+  const sel = document.getElementById('lsTrendProject');
+  if (!sel || !sel.value) return;
+  const code = sel.value;
+
+  const rows = _lsRows
+    .filter(r => r.project_code === code)
+    .sort((a, b) => a.report_date.localeCompare(b.report_date));
+
+  if (_lsChart) { _lsChart.destroy(); _lsChart = null; }
+  if (rows.length === 0) return;
+
+  const labels = rows.map(r => lsFmtDate(r.report_date));
+  const catKeys = [
+    { key: 'qty_ketcau',    label: 'CN Kết cấu' },
+    { key: 'qty_hoanthien', label: 'CN Hoàn thiện' },
+    { key: 'qty_mep',       label: 'CN MEP' },
+    { key: 'qty_congnhat',  label: 'CN Công nhật' },
+    { key: 'qty_khac',      label: 'CN Khác' },
+  ];
+
+  const ctx = document.getElementById('lsTrendChart');
+  _lsChart = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'line',
+          label: 'Tổng CN',
+          data: rows.map(r => r.qty_total || 0),
+          borderColor: '#DC2626',
+          backgroundColor: 'rgba(220,38,38,.1)',
+          tension: 0.3,
+          pointRadius: 3,
+          fill: true,
+          order: 0,
+        },
+        ...catKeys.map(c => ({
+          type: 'bar',
+          label: c.label,
+          data: rows.map(r => r[c.key] || 0),
+          backgroundColor: LS_CAT_COLORS[c.key] + 'cc',
+          borderColor: LS_CAT_COLORS[c.key],
+          borderWidth: 1,
+          borderRadius: 3,
+          order: 1,
+        })),
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } },
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 }, autoSkip: true, maxRotation: 45 }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+// ── Thẻ báo cáo nhanh dạng ảnh (1 ngày, tất cả dự án đang chọn) ──
+async function lsRenderSnapshot() {
+  const date = document.getElementById('lsSnapDate').value;
+  const area = document.getElementById('lsSnapArea');
+  const saveBtn = document.getElementById('lsSnapSaveBtn');
+  if (!date) return;
+
+  area.innerHTML = '<div class="loading" style="margin-top:12px"><span class="loading-spinner"></span> Đang tải...</div>';
+  saveBtn.disabled = true;
+
+  // Ưu tiên dùng đúng các dự án đang tick trong bộ lọc; nếu chưa tick gì thì lấy tất cả
+  let codes = lsGetSelectedCodes();
+  if (codes.length === 0) codes = _lsProjects.map(p => p.code);
+  if (codes.length === 0) {
+    area.innerHTML = '<div class="empty-state"><div class="empty-icon">🗂</div>Chưa có dự án nào</div>';
+    return;
+  }
+
+  try {
+    const codesFilter = codes.map(c => `"${c}"`).join(',');
+    const query =
+      `attendance_logs?select=project_code,qty_ketcau,qty_hoanthien,qty_mep,qty_congnhat,qty_khac,qty_total,qty_bch` +
+      `&project_code=in.(${codesFilter})&report_date=eq.${date}&order=qty_total.desc`;
+    const rows = await sb2Fetch(query);
+
+    if (!rows || rows.length === 0) {
+      area.innerHTML = '<div class="empty-state"><div class="empty-icon">🖼</div>Không có báo cáo quân số cho ngày này</div>';
+      saveBtn.disabled = true;
+      return;
+    }
+
+    const totalCN  = rows.reduce((s, r) => s + (r.qty_total || 0), 0);
+    const totalBCH = rows.reduce((s, r) => s + (r.qty_bch || 0), 0);
+
+    area.innerHTML = `
+      <div class="ls-snap-card" id="lsSnapCard">
+        <div class="ls-snap-header">
+          <img src="https://raw.githubusercontent.com/VelaE-C/VELA_CHAMCONG/refs/heads/main/LOGO%20VELA.png" alt="VelaE&C">
+          <div class="ls-snap-header-r">
+            <div class="ls-snap-label">Báo cáo quân số</div>
+            <div class="ls-snap-date">${lsFmtDate(date)}</div>
+          </div>
+        </div>
+        <div class="ls-snap-total">
+          <div>
+            <div class="ls-snap-big">${totalCN}</div>
+            <div class="ls-snap-big-label">Công nhân</div>
+          </div>
+          <div>
+            <div class="ls-snap-bch">${totalBCH}</div>
+            <div class="ls-snap-bch-label">BCH</div>
+          </div>
+        </div>
+        <div>
+          ${rows.map((r, i) => {
+            const pct = totalCN > 0 ? Math.round((r.qty_total || 0) / totalCN * 100) : 0;
+            const color = LS_SNAP_COLORS[i % LS_SNAP_COLORS.length];
+            return `
+              <div class="ls-snap-item" style="--item-color:${color}">
+                <div class="ls-snap-left">
+                  <div class="ls-snap-name">${r.project_code}</div>
+                  <div class="ls-snap-bar-bg"><div class="ls-snap-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+                </div>
+                <div class="ls-snap-right">
+                  <div class="ls-snap-cn" style="color:${color}">${r.qty_total || 0}</div>
+                  <div class="ls-snap-bchcount">${r.qty_bch || 0} BCH</div>
+                </div>
+              </div>`;
+          }).join('')}
+        </div>
+        <div class="ls-snap-footer">
+          <span>${rows.length} dự án</span>
+          <span>VelaE&C · Cập nhật ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+      </div>
+    `;
+    saveBtn.disabled = false;
+  } catch (e) {
+    console.error(e);
+    area.innerHTML = '<div class="alert alert-danger">Lỗi tải dữ liệu thẻ báo cáo</div>';
+    showToast('❌ Lỗi tải dữ liệu');
+  }
+}
+
+async function lsSaveSnapshotImage() {
+  const card = document.getElementById('lsSnapCard');
+  if (!card) return;
+  showToast('⏳ Đang tạo ảnh...');
+
+  try {
+    const canvas = await html2canvas(card, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
+    const date = document.getElementById('lsSnapDate').value || 'baocao';
+    const link = document.createElement('a');
+    link.download = `VELA_QuanSo_${date}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('✅ Đã lưu ảnh');
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Lỗi tạo ảnh');
   }
 }
