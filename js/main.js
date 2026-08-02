@@ -15,6 +15,7 @@ const NAV_PAGES = {
   users:      { label: 'Nhân Sự',         icon: '👤', adminOnly: true,  role: null },
   adjust:     { label: 'Điều Chỉnh',      icon: '✏️', adminOnly: true,  role: null },
   warnings:   { label: 'Cảnh Báo',        icon: '⚠️', adminOnly: true,  role: null },
+  laborsummary: { label: 'Tổng Hợp Nhân Công', icon: '📊', adminOnly: true, role: null },
 };
 
 // Phân quyền truy cập từng page
@@ -29,6 +30,7 @@ const PAGE_PERMISSIONS = {
   users:     () => canViewAdmin(),
   adjust:    () => canViewAdmin(),
   warnings:  () => canViewAdmin(),
+  laborsummary: () => canViewAdmin(),
 };
 
 function navigate(pageId) {
@@ -70,6 +72,7 @@ function navigate(pageId) {
     projects:  () => { renderProjectList(); },
     requests:  () => initRequests(),
     approvals: () => initApprovals(),
+    laborsummary: () => initLaborSummary(),
   };
   if (hooks[pageId]) hooks[pageId]();
 }
@@ -83,7 +86,7 @@ function buildNav() {
   const groups = [
     { label: 'CHẤM CÔNG', pages: ['checkin', 'mytable', 'requests', 'teamtable', 'quanso'] },
     { label: 'DUYỆT CÔNG', pages: ['approvals'] },
-    { label: 'QUẢN LÝ',   pages: ['projects', 'users', 'adjust', 'warnings'] },
+    { label: 'QUẢN LÝ',   pages: ['projects', 'users', 'adjust', 'warnings', 'laborsummary'] },
   ];
 
   let sidebarHtml = '';
