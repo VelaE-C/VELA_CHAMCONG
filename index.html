@@ -15,6 +15,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/main.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -418,6 +420,45 @@
         </div>
       </div>
 
+      <!-- ── PAGE: TỔNG HỢP NHÂN CÔNG DỰ ÁN (Admin) ── -->
+      <div class="page" id="page-laborsummary">
+        <div class="content-header">
+          <h2>📊 Tổng Hợp Nhân Công Dự Án</h2>
+          <p>Lọc theo dự án, khoảng ngày và loại công nhân — chỉ dành cho Admin</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Bộ lọc</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Từ ngày</label><input type="date" id="lsDateFrom" class="form-control"></div>
+            <div class="form-group"><label class="form-label">Đến ngày</label><input type="date" id="lsDateTo" class="form-control"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Loại công nhân</label>
+            <select id="lsLaborType" class="form-control">
+              <option value="all">Tất cả loại</option>
+              <option value="qty_ketcau">🏗 CN Kết cấu</option>
+              <option value="qty_hoanthien">🎨 CN Hoàn thiện</option>
+              <option value="qty_mep">⚡ CN MEP</option>
+              <option value="qty_congnhat">📅 CN Công nhật</option>
+              <option value="qty_khac">🔨 CN Khác</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dự án <span style="font-weight:400;color:var(--gray5)">(chọn nhiều)</span></label>
+            <div id="lsProjectFilter" class="ls-multiselect">
+              <div class="loading"><span class="loading-spinner"></span> Đang tải dự án...</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="lsApplyFilter()">🔍 Xem báo cáo</button>
+            <button class="btn btn-secondary" id="lsExportBtn" onclick="lsExportPDF()" disabled>📄 Xuất PDF</button>
+          </div>
+        </div>
+
+        <div id="lsResultArea"></div>
+      </div>
+
       <!-- ── PAGE: YÊU CẦU BÙ CÔNG (nhân viên gửi) ── -->
       <div class="page" id="page-requests">
         <div class="content-header">
@@ -613,6 +654,7 @@
 <script src="js/modules/warnings.js"></script>
 <script src="js/modules/requests.js"></script>
 <script src="js/modules/approvals.js"></script>
+<script src="js/modules/laborsummary.js"></script>
 <script src="js/main.js"></script>
 
 <!-- SW unregister (remove cache issues) -->
