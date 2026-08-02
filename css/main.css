@@ -539,3 +539,41 @@ tbody tr:hover td { background: var(--gray1); }
 @media (min-width: 1024px) {
   .bottom-nav { display: none; }
 }
+
+/* ===== Tổng Hợp Nhân Công Dự Án ===== */
+.ls-multiselect {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--gray3);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: white;
+}
+.ls-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 13px;
+  color: var(--gray8);
+  cursor: pointer;
+}
+.ls-checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue);
+  flex-shrink: 0;
+}
+.ls-print-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid var(--navy);
+}
+.ls-print-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
