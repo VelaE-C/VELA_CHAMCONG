@@ -164,24 +164,6 @@ function lsRenderResult(dateFrom, dateTo, laborType) {
     })
     .sort((a, b) => a.code.localeCompare(b.code));
 
-  // Trung bình tổng hợp toàn nhóm dự án — gộp theo NGÀY thực tế (không cộng dồn trung bình từng dự án)
-  const byDate = {};
-  _lsRows.forEach(r => {
-    if (!byDate[r.report_date]) {
-      byDate[r.report_date] = {};
-      catList.forEach(k => (byDate[r.report_date][k] = 0));
-      byDate[r.report_date].qty_total = 0;
-    }
-    catList.forEach(k => (byDate[r.report_date][k] += r[k] || 0));
-    byDate[r.report_date].qty_total += r.qty_total || 0;
-  });
-  const dateKeys = Object.keys(byDate);
-  const grandAvg = {};
-  catList.forEach(k => {
-    grandAvg[k] = dateKeys.length ? Math.round(dateKeys.reduce((s, dk) => s + byDate[dk][k], 0) / dateKeys.length) : 0;
-  });
-  grandAvg.qty_total = dateKeys.length ? Math.round(dateKeys.reduce((s, dk) => s + byDate[dk].qty_total, 0) / dateKeys.length) : 0;
-
   const cols = [
     { key: 'qty_ketcau',    label: '🏗 KC' },
     { key: 'qty_hoanthien', label: '🎨 HT' },
@@ -224,17 +206,8 @@ function lsRenderResult(dateFrom, dateTo, laborType) {
               </tr>
             `).join('')}
           </tbody>
-          <tfoot>
-            <tr style="background:#EFF6FF">
-              <td style="font-weight:700;color:var(--navy)">TB CẢ NHÓM/NGÀY</td>
-              ${visibleCols.map(c => `<td style="font-weight:700;color:var(--navy)">${grandAvg[c.key]}</td>`).join('')}
-              <td style="font-weight:700;color:var(--navy)">${grandAvg.qty_total}</td>
-              <td>${dateKeys.length} ngày</td>
-            </tr>
-          </tfoot>
         </table>
       </div>
-      <div style="font-size:11px;color:var(--gray5);margin-top:8px">💡 "TB CẢ NHÓM/NGÀY" tính theo tổng nhân công thực tế mỗi ngày trên toàn bộ dự án đã chọn, không phải cộng dồn trung bình từng dự án.</div>
       <div style="text-align:right;font-size:11px;color:var(--gray5);margin-top:10px">Xuất báo cáo lúc ${new Date().toLocaleString('vi-VN')}</div>
     </div>
   `;
