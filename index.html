@@ -425,14 +425,19 @@
       <div class="page" id="page-laborsummary">
         <div class="content-header">
           <h2>📊 Tổng Hợp Nhân Công Dự Án</h2>
-          <p>Lọc theo dự án, khoảng ngày và loại công nhân — chỉ dành cho Admin</p>
+          <p>Lọc theo dự án và khoảng thời gian — số liệu trung bình theo ngày — chỉ dành cho Admin</p>
         </div>
 
         <div class="card">
           <div class="card-title">Bộ lọc</div>
-          <div class="form-row">
-            <div class="form-group"><label class="form-label">Từ ngày</label><input type="date" id="lsDateFrom" class="form-control"></div>
-            <div class="form-group"><label class="form-label">Đến ngày</label><input type="date" id="lsDateTo" class="form-control"></div>
+          <div class="form-group">
+            <label class="form-label">Khoảng thời gian</label>
+            <div class="ls-preset-group" id="lsPresetGroup">
+              <button type="button" class="ls-preset-btn active" data-preset="all" onclick="lsSetPreset('all')">Tất cả</button>
+              <button type="button" class="ls-preset-btn" data-preset="week" onclick="lsSetPreset('week')">1 tuần gần nhất</button>
+              <button type="button" class="ls-preset-btn" data-preset="month" onclick="lsSetPreset('month')">1 tháng gần nhất</button>
+              <button type="button" class="ls-preset-btn" data-preset="quarter" onclick="lsSetPreset('quarter')">1 quý gần nhất</button>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Loại công nhân</label>
@@ -446,7 +451,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Dự án <span style="font-weight:400;color:var(--gray5)">(chọn nhiều)</span></label>
+            <label class="form-label">Dự án <span style="font-weight:400;color:var(--gray5)">(chọn nhiều — lấy trực tiếp từ dữ liệu quân số đã nhập)</span></label>
             <div id="lsProjectFilter" class="ls-multiselect">
               <div class="loading"><span class="loading-spinner"></span> Đang tải dự án...</div>
             </div>
@@ -466,18 +471,6 @@
             <select id="lsTrendProject" class="form-control" style="width:auto;min-width:200px" onchange="lsRenderTrendChart()"></select>
           </div>
           <div class="ls-chart-wrap"><canvas id="lsTrendChart"></canvas></div>
-        </div>
-
-        <!-- Thẻ báo cáo nhanh dạng ảnh -->
-        <div class="card">
-          <div class="card-title">🖼 Thẻ Báo Cáo Nhanh (xuất ảnh PNG gửi Zalo/BGD)</div>
-          <div class="form-row">
-            <div class="form-group"><label class="form-label">Ngày báo cáo</label><input type="date" id="lsSnapDate" class="form-control" onchange="lsRenderSnapshot()"></div>
-            <div class="form-group" style="display:flex;align-items:flex-end">
-              <button class="btn btn-secondary" id="lsSnapSaveBtn" onclick="lsSaveSnapshotImage()" style="width:100%" disabled>💾 Lưu ảnh PNG</button>
-            </div>
-          </div>
-          <div id="lsSnapArea"></div>
         </div>
       </div>
 
