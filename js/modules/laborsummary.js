@@ -1,13 +1,22 @@
 // ============================================================
 // VELA_CHAMCONG — js/modules/laborsummary.js
 // Tổng Hợp Nhân Công Dự Án — chỉ site_admin & superadmin xem được
-// Lọc theo nhiều dự án + khoảng ngày + loại công nhân, xuất PDF
+// Lọc theo nhiều dự án + preset thời gian + loại công nhân
+// Số liệu hiển thị: TRUNG BÌNH THEO NGÀY trong khoảng đã chọn
 // ============================================================
+//
+// LƯU Ý QUAN TRỌNG: danh sách dự án để lọc lấy trực tiếp từ các
+// project_code ĐÃ TỪNG XUẤT HIỆN trong attendance_logs (Supabase B),
+// KHÔNG lấy từ bảng projects (Supabase A) — vì 2 nguồn này có thể
+// lệch mã dự án (quân số dùng normalizeCode() fuzzy-match khi nhập,
+// không đảm bảo khớp tuyệt đối với mã bên Supabase A). Lấy trực tiếp
+// từ Supabase B đảm bảo lọc đúng 100% với dữ liệu thật.
 
-let _lsProjects = [];   // { id, code, name } — danh sách dự án (Supabase A)
-let _lsRows = [];       // dữ liệu attendance_logs (Supabase B) sau khi lọc (chưa gộp — dùng cho timeline)
+let _lsProjectCodes = [];  // danh sách mã dự án (distinct, từ attendance_logs)
+let _lsRows = [];          // dữ liệu attendance_logs sau khi lọc (chưa gộp — dùng cho bảng + timeline)
 let _lsInited = false;
-let _lsChart = null;    // Chart.js instance của timeline
+let _lsChart = null;       // Chart.js instance của timeline
+let _lsPreset = 'all';     // 'all' | 'week' | 'month' | 'quarter'
 
 const LS_CAT_COLORS = {
   qty_ketcau:    '#1A2B4A', // navy
@@ -16,41 +25,51 @@ const LS_CAT_COLORS = {
   qty_congnhat:  '#2563EB', // blue
   qty_khac:      '#F97316', // orange
 };
-const LS_SNAP_COLORS = ['#1A2B4A','#2563EB','#0D9488','#16A34A','#D97706','#DC2626','#F97316','#7C3AED','#0369A1','#92400E'];
 
 async function initLaborSummary() {
-  const today = localDateStr(new Date());
-  const firstOfMonth = today.slice(0, 8) + '01';
-  const fromEl = document.getElementById('lsDateFrom');
-  const toEl   = document.getElementById('lsDateTo');
-  if (fromEl && !fromEl.value) fromEl.value = firstOfMonth;
-  if (toEl && !toEl.value)     toEl.value   = today;
-
-  const snapEl = document.getElementById('lsSnapDate');
-  if (snapEl && !snapEl.value) snapEl.value = today;
-
   if (!_lsInited) {
     await lsLoadProjects();
     _lsInited = true;
-    lsRenderSnapshot(); // tự động xem thẻ báo cáo hôm nay khi vào tab lần đầu
   }
 }
 
+function lsSetPreset(preset) {
+  _lsPreset = preset;
+  document.querySelectorAll('.ls-preset-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.preset === preset);
+  });
+}
+
+function lsGetDateRangeFromPreset() {
+  if (_lsPreset === 'all') return { from: null, to: null };
+  const today = localDateStr(new Date());
+  const d = new Date();
+  if (_lsPreset === 'week')    d.setDate(d.getDate() - 7);
+  else if (_lsPreset === 'month')   d.setMonth(d.getMonth() - 1);
+  else if (_lsPreset === 'quarter') d.setMonth(d.getMonth() - 3);
+  return { from: localDateStr(d), to: today };
+}
+
+// ── Lấy danh sách dự án — trực tiếp từ attendance_logs ──
 async function lsLoadProjects() {
   const box = document.getElementById('lsProjectFilter');
   try {
-    const res = await sbFetch('projects?select=id,code,name&is_active=eq.true&order=code');
-    _lsProjects = res || [];
+    const rows = await sb2Fetch(
+      'attendance_logs?select=project_code&order=project_code&limit=10000',
+      { headers: { Range: '0-9999' } }
+    );
+    const set = new Set((rows || []).map(r => r.project_code).filter(Boolean));
+    _lsProjectCodes = [...set].sort();
   } catch (e) {
     console.error(e);
     showToast('❌ Lỗi tải danh sách dự án');
-    _lsProjects = [];
+    _lsProjectCodes = [];
   }
 
   if (!box) return;
 
-  if (_lsProjects.length === 0) {
-    box.innerHTML = '<div class="empty-state" style="padding:16px"><div class="empty-icon">🗂</div>Không có dự án nào</div>';
+  if (_lsProjectCodes.length === 0) {
+    box.innerHTML = '<div class="empty-state" style="padding:16px"><div class="empty-icon">🗂</div>Chưa có dữ liệu quân số nào được nhập</div>';
     return;
   }
 
@@ -59,10 +78,10 @@ async function lsLoadProjects() {
       <input type="checkbox" id="lsSelectAll" checked onchange="lsToggleAll(this.checked)">
       <span>Chọn tất cả</span>
     </label>
-    ${_lsProjects.map(p => `
+    ${_lsProjectCodes.map(code => `
       <label class="ls-checkbox-item">
-        <input type="checkbox" class="ls-project-cb" value="${p.code}" checked>
-        <span>${p.code} — ${p.name}</span>
+        <input type="checkbox" class="ls-project-cb" value="${code}" checked>
+        <span>${code}</span>
       </label>
     `).join('')}
   `;
@@ -78,12 +97,11 @@ function lsGetSelectedCodes() {
 
 async function lsApplyFilter() {
   const codes = lsGetSelectedCodes();
-  const dateFrom = document.getElementById('lsDateFrom').value;
-  const dateTo   = document.getElementById('lsDateTo').value;
   const laborType = document.getElementById('lsLaborType').value;
 
   if (codes.length === 0) { showToast('⚠️ Chọn ít nhất 1 dự án'); return; }
-  if (!dateFrom || !dateTo || dateFrom > dateTo) { showToast('⚠️ Khoảng ngày không hợp lệ'); return; }
+
+  const { from: dateFrom, to: dateTo } = lsGetDateRangeFromPreset();
 
   const resultArea = document.getElementById('lsResultArea');
   resultArea.innerHTML = '<div class="loading" style="margin-top:16px"><span class="loading-spinner"></span> Đang tải dữ liệu...</div>';
@@ -91,10 +109,13 @@ async function lsApplyFilter() {
 
   try {
     const codesFilter = codes.map(c => `"${c}"`).join(',');
-    const query =
+    let query =
       `attendance_logs?select=project_code,report_date,qty_ketcau,qty_hoanthien,qty_mep,qty_congnhat,qty_khac,qty_total,qty_bch` +
-      `&project_code=in.(${codesFilter})&report_date=gte.${dateFrom}&report_date=lte.${dateTo}` +
-      `&order=project_code,report_date&limit=10000`;
+      `&project_code=in.(${codesFilter})`;
+    if (dateFrom) query += `&report_date=gte.${dateFrom}`;
+    if (dateTo)   query += `&report_date=lte.${dateTo}`;
+    query += `&order=project_code,report_date&limit=10000`;
+
     const rows = await sb2Fetch(query, { headers: { Range: '0-9999' } });
     _lsRows = rows || [];
     lsRenderResult(dateFrom, dateTo, laborType);
@@ -105,6 +126,7 @@ async function lsApplyFilter() {
   }
 }
 
+// ── Render bảng: TRUNG BÌNH THEO NGÀY ──
 function lsRenderResult(dateFrom, dateTo, laborType) {
   const resultArea = document.getElementById('lsResultArea');
   const exportBtn = document.getElementById('lsExportBtn');
@@ -117,37 +139,48 @@ function lsRenderResult(dateFrom, dateTo, laborType) {
     return;
   }
 
-  // Gộp dữ liệu theo dự án (project_code)
+  const catList = ['qty_ketcau', 'qty_hoanthien', 'qty_mep', 'qty_congnhat', 'qty_khac'];
+
+  // Gộp theo dự án — tính tổng và số ngày BC để suy ra trung bình/ngày
   const byProject = {};
   _lsRows.forEach(r => {
     if (!byProject[r.project_code]) {
-      byProject[r.project_code] = {
-        code: r.project_code,
-        qty_ketcau: 0, qty_hoanthien: 0, qty_mep: 0, qty_congnhat: 0, qty_khac: 0, qty_total: 0,
-        days: 0,
-      };
+      byProject[r.project_code] = { code: r.project_code, sum: {}, days: 0 };
+      catList.forEach(k => (byProject[r.project_code].sum[k] = 0));
+      byProject[r.project_code].sum.qty_total = 0;
     }
     const p = byProject[r.project_code];
-    p.qty_ketcau    += r.qty_ketcau    || 0;
-    p.qty_hoanthien += r.qty_hoanthien || 0;
-    p.qty_mep       += r.qty_mep       || 0;
-    p.qty_congnhat  += r.qty_congnhat  || 0;
-    p.qty_khac      += r.qty_khac      || 0;
-    p.qty_total     += r.qty_total     || 0;
+    catList.forEach(k => (p.sum[k] += r[k] || 0));
+    p.sum.qty_total += r.qty_total || 0;
     p.days += 1;
   });
 
-  const projectRows = Object.values(byProject).sort((a, b) => a.code.localeCompare(b.code));
+  const projectRows = Object.values(byProject)
+    .map(p => {
+      const avg = {};
+      catList.forEach(k => (avg[k] = p.days ? Math.round(p.sum[k] / p.days) : 0));
+      avg.qty_total = p.days ? Math.round(p.sum.qty_total / p.days) : 0;
+      return { code: p.code, days: p.days, avg };
+    })
+    .sort((a, b) => a.code.localeCompare(b.code));
 
-  const grand = projectRows.reduce((acc, p) => {
-    acc.qty_ketcau    += p.qty_ketcau;
-    acc.qty_hoanthien += p.qty_hoanthien;
-    acc.qty_mep       += p.qty_mep;
-    acc.qty_congnhat  += p.qty_congnhat;
-    acc.qty_khac      += p.qty_khac;
-    acc.qty_total     += p.qty_total;
-    return acc;
-  }, { qty_ketcau: 0, qty_hoanthien: 0, qty_mep: 0, qty_congnhat: 0, qty_khac: 0, qty_total: 0 });
+  // Trung bình tổng hợp toàn nhóm dự án — gộp theo NGÀY thực tế (không cộng dồn trung bình từng dự án)
+  const byDate = {};
+  _lsRows.forEach(r => {
+    if (!byDate[r.report_date]) {
+      byDate[r.report_date] = {};
+      catList.forEach(k => (byDate[r.report_date][k] = 0));
+      byDate[r.report_date].qty_total = 0;
+    }
+    catList.forEach(k => (byDate[r.report_date][k] += r[k] || 0));
+    byDate[r.report_date].qty_total += r.qty_total || 0;
+  });
+  const dateKeys = Object.keys(byDate);
+  const grandAvg = {};
+  catList.forEach(k => {
+    grandAvg[k] = dateKeys.length ? Math.round(dateKeys.reduce((s, dk) => s + byDate[dk][k], 0) / dateKeys.length) : 0;
+  });
+  grandAvg.qty_total = dateKeys.length ? Math.round(dateKeys.reduce((s, dk) => s + byDate[dk].qty_total, 0) / dateKeys.length) : 0;
 
   const cols = [
     { key: 'qty_ketcau',    label: '🏗 KC' },
@@ -158,13 +191,17 @@ function lsRenderResult(dateFrom, dateTo, laborType) {
   ];
   const visibleCols = laborType === 'all' ? cols : cols.filter(c => c.key === laborType);
 
+  const periodLabel = dateFrom && dateTo
+    ? `Từ ${lsFmtDate(dateFrom)} đến ${lsFmtDate(dateTo)}`
+    : 'Toàn bộ thời gian có dữ liệu';
+
   resultArea.innerHTML = `
     <div class="card" id="lsPrintArea">
       <div class="ls-print-header">
         <img src="https://raw.githubusercontent.com/VelaE-C/VELA_CHAMCONG/refs/heads/main/LOGO%20VELA.png" class="ls-print-logo" alt="VelaE&C">
         <div>
-          <div style="font-weight:700;color:var(--navy);font-size:16px">BÁO CÁO TỔNG HỢP NHÂN CÔNG DỰ ÁN</div>
-          <div style="font-size:12px;color:var(--gray5)">Từ ${lsFmtDate(dateFrom)} đến ${lsFmtDate(dateTo)} · ${projectRows.length} dự án</div>
+          <div style="font-weight:700;color:var(--navy);font-size:16px">BÁO CÁO TỔNG HỢP NHÂN CÔNG DỰ ÁN (TB/NGÀY)</div>
+          <div style="font-size:12px;color:var(--gray5)">${periodLabel} · ${projectRows.length} dự án</div>
         </div>
       </div>
       <div class="table-wrap">
@@ -172,8 +209,8 @@ function lsRenderResult(dateFrom, dateTo, laborType) {
           <thead>
             <tr>
               <th>Dự án</th>
-              ${visibleCols.map(c => `<th>${c.label}</th>`).join('')}
-              <th>Tổng CN</th>
+              ${visibleCols.map(c => `<th>TB ${c.label}/ngày</th>`).join('')}
+              <th>TB Tổng CN/ngày</th>
               <th>Số ngày BC</th>
             </tr>
           </thead>
@@ -181,22 +218,23 @@ function lsRenderResult(dateFrom, dateTo, laborType) {
             ${projectRows.map(p => `
               <tr>
                 <td><strong>${p.code}</strong></td>
-                ${visibleCols.map(c => `<td>${p[c.key]}</td>`).join('')}
-                <td><strong>${p.qty_total}</strong></td>
+                ${visibleCols.map(c => `<td>${p.avg[c.key]}</td>`).join('')}
+                <td><strong>${p.avg.qty_total}</strong></td>
                 <td>${p.days}</td>
               </tr>
             `).join('')}
           </tbody>
           <tfoot>
             <tr style="background:#EFF6FF">
-              <td style="font-weight:700;color:var(--navy)">TỔNG CỘNG</td>
-              ${visibleCols.map(c => `<td style="font-weight:700;color:var(--navy)">${grand[c.key]}</td>`).join('')}
-              <td style="font-weight:700;color:var(--navy)">${grand.qty_total}</td>
-              <td>—</td>
+              <td style="font-weight:700;color:var(--navy)">TB CẢ NHÓM/NGÀY</td>
+              ${visibleCols.map(c => `<td style="font-weight:700;color:var(--navy)">${grandAvg[c.key]}</td>`).join('')}
+              <td style="font-weight:700;color:var(--navy)">${grandAvg.qty_total}</td>
+              <td>${dateKeys.length} ngày</td>
             </tr>
           </tfoot>
         </table>
       </div>
+      <div style="font-size:11px;color:var(--gray5);margin-top:8px">💡 "TB CẢ NHÓM/NGÀY" tính theo tổng nhân công thực tế mỗi ngày trên toàn bộ dự án đã chọn, không phải cộng dồn trung bình từng dự án.</div>
       <div style="text-align:right;font-size:11px;color:var(--gray5);margin-top:10px">Xuất báo cáo lúc ${new Date().toLocaleString('vi-VN')}</div>
     </div>
   `;
@@ -247,9 +285,7 @@ async function lsExportPDF() {
       heightLeft -= (pageHeight - 20);
     }
 
-    const dateFrom = document.getElementById('lsDateFrom').value;
-    const dateTo   = document.getElementById('lsDateTo').value;
-    pdf.save(`TongHopNhanCong_${dateFrom}_${dateTo}.pdf`);
+    pdf.save(`TongHopNhanCong_${_lsPreset}_${localDateStr(new Date())}.pdf`);
     showToast('✅ Đã xuất PDF thành công');
   } catch (e) {
     console.error(e);
@@ -319,107 +355,4 @@ function lsRenderTrendChart() {
       },
     },
   });
-}
-
-// ── Thẻ báo cáo nhanh dạng ảnh (1 ngày, tất cả dự án đang chọn) ──
-async function lsRenderSnapshot() {
-  const date = document.getElementById('lsSnapDate').value;
-  const area = document.getElementById('lsSnapArea');
-  const saveBtn = document.getElementById('lsSnapSaveBtn');
-  if (!date) return;
-
-  area.innerHTML = '<div class="loading" style="margin-top:12px"><span class="loading-spinner"></span> Đang tải...</div>';
-  saveBtn.disabled = true;
-
-  // Ưu tiên dùng đúng các dự án đang tick trong bộ lọc; nếu chưa tick gì thì lấy tất cả
-  let codes = lsGetSelectedCodes();
-  if (codes.length === 0) codes = _lsProjects.map(p => p.code);
-  if (codes.length === 0) {
-    area.innerHTML = '<div class="empty-state"><div class="empty-icon">🗂</div>Chưa có dự án nào</div>';
-    return;
-  }
-
-  try {
-    const codesFilter = codes.map(c => `"${c}"`).join(',');
-    const query =
-      `attendance_logs?select=project_code,qty_ketcau,qty_hoanthien,qty_mep,qty_congnhat,qty_khac,qty_total,qty_bch` +
-      `&project_code=in.(${codesFilter})&report_date=eq.${date}&order=qty_total.desc`;
-    const rows = await sb2Fetch(query);
-
-    if (!rows || rows.length === 0) {
-      area.innerHTML = '<div class="empty-state"><div class="empty-icon">🖼</div>Không có báo cáo quân số cho ngày này</div>';
-      saveBtn.disabled = true;
-      return;
-    }
-
-    const totalCN  = rows.reduce((s, r) => s + (r.qty_total || 0), 0);
-    const totalBCH = rows.reduce((s, r) => s + (r.qty_bch || 0), 0);
-
-    area.innerHTML = `
-      <div class="ls-snap-card" id="lsSnapCard">
-        <div class="ls-snap-header">
-          <img src="https://raw.githubusercontent.com/VelaE-C/VELA_CHAMCONG/refs/heads/main/LOGO%20VELA.png" alt="VelaE&C">
-          <div class="ls-snap-header-r">
-            <div class="ls-snap-label">Báo cáo quân số</div>
-            <div class="ls-snap-date">${lsFmtDate(date)}</div>
-          </div>
-        </div>
-        <div class="ls-snap-total">
-          <div>
-            <div class="ls-snap-big">${totalCN}</div>
-            <div class="ls-snap-big-label">Công nhân</div>
-          </div>
-          <div>
-            <div class="ls-snap-bch">${totalBCH}</div>
-            <div class="ls-snap-bch-label">BCH</div>
-          </div>
-        </div>
-        <div>
-          ${rows.map((r, i) => {
-            const pct = totalCN > 0 ? Math.round((r.qty_total || 0) / totalCN * 100) : 0;
-            const color = LS_SNAP_COLORS[i % LS_SNAP_COLORS.length];
-            return `
-              <div class="ls-snap-item" style="--item-color:${color}">
-                <div class="ls-snap-left">
-                  <div class="ls-snap-name">${r.project_code}</div>
-                  <div class="ls-snap-bar-bg"><div class="ls-snap-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-                </div>
-                <div class="ls-snap-right">
-                  <div class="ls-snap-cn" style="color:${color}">${r.qty_total || 0}</div>
-                  <div class="ls-snap-bchcount">${r.qty_bch || 0} BCH</div>
-                </div>
-              </div>`;
-          }).join('')}
-        </div>
-        <div class="ls-snap-footer">
-          <span>${rows.length} dự án</span>
-          <span>VelaE&C · Cập nhật ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
-        </div>
-      </div>
-    `;
-    saveBtn.disabled = false;
-  } catch (e) {
-    console.error(e);
-    area.innerHTML = '<div class="alert alert-danger">Lỗi tải dữ liệu thẻ báo cáo</div>';
-    showToast('❌ Lỗi tải dữ liệu');
-  }
-}
-
-async function lsSaveSnapshotImage() {
-  const card = document.getElementById('lsSnapCard');
-  if (!card) return;
-  showToast('⏳ Đang tạo ảnh...');
-
-  try {
-    const canvas = await html2canvas(card, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
-    const date = document.getElementById('lsSnapDate').value || 'baocao';
-    const link = document.createElement('a');
-    link.download = `VELA_QuanSo_${date}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    showToast('✅ Đã lưu ảnh');
-  } catch (e) {
-    console.error(e);
-    showToast('❌ Lỗi tạo ảnh');
-  }
 }
