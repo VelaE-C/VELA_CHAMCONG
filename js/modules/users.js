@@ -10,6 +10,7 @@ async function loadUsers() {
     STATE.users = await sbFetch(url);
     renderUserList();
   } catch(e) { console.error(e); }
+  loadInactiveUsers(); // đồng bộ luôn danh sách đã vô hiệu hóa — không chặn nếu lỗi
 }
 
 // ── USER LIST FILTER + SORT ──
@@ -409,4 +410,72 @@ async function deactivateUser(id, name) {
     showToast('✅ Đã vô hiệu hóa '+name);
     await loadUsers();
   } catch(e) { showToast('❌ '+e.message); }
+}
+
+// ── NHÂN SỰ ĐÃ VÔ HIỆU HÓA — khôi phục hoặc xóa vĩnh viễn ──
+let STATE_inactiveUsers = [];
+
+async function loadInactiveUsers() {
+  try {
+    let url = 'users?is_active=eq.false&order=full_name';
+    if (STATE.currentUser.role==='site_admin' && STATE.currentUser.project_id)
+      url += `&project_id=eq.${STATE.currentUser.project_id}`;
+    STATE_inactiveUsers = await sbFetch(url);
+  } catch(e) {
+    console.error(e);
+    STATE_inactiveUsers = [];
+  }
+  const badge = document.getElementById('inactiveCountBadge');
+  if (badge) badge.textContent = STATE_inactiveUsers.length || '';
+  renderInactiveUserList();
+}
+
+function renderInactiveUserList() {
+  const el = document.getElementById('inactiveUserList'); if (!el) return;
+  if (!STATE_inactiveUsers.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:16px"><div class="empty-icon">✅</div>Không có nhân sự nào bị vô hiệu hóa</div>';
+    return;
+  }
+  el.innerHTML = STATE_inactiveUsers.map((u,i) => {
+    const bg = i%2===0 ? 'white' : 'var(--gray1)';
+    const safeName = (u.full_name||'').replace(/'/g,"\\'");
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${bg};border-bottom:1px solid var(--gray2)">
+      <div style="font-family:monospace;font-size:12px;font-weight:700;color:var(--gray5);min-width:70px">${u.employee_code||'—'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;color:var(--gray7)">${u.full_name}</div>
+        <div style="font-size:12px;color:var(--gray5)">${u.email||''}${u.position?' · '+u.position:''}</div>
+      </div>
+      <button onclick="restoreUser('${u.id}','${safeName}')" class="btn btn-secondary btn-sm">♻️ Khôi phục</button>
+      <button onclick="permanentlyDeleteUser('${u.id}','${safeName}')" class="btn btn-secondary btn-sm" style="color:var(--red)">🗑️ Xóa vĩnh viễn</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleInactiveSection() {
+  const body = document.getElementById('inactiveSectionBody');
+  const btn  = document.getElementById('inactiveToggleBtn');
+  if (!body || !btn) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  btn.textContent = isOpen ? '▾ Xem' : '▴ Thu gọn';
+}
+
+async function restoreUser(id, name) {
+  if (!confirm(`Khôi phục nhân sự "${name}"?\nNgười này sẽ xuất hiện lại trong danh sách đang hoạt động.`)) return;
+  try {
+    await sbFetch(`users?id=eq.${id}`, { method:'PATCH', body: JSON.stringify({ is_active: true }) });
+    showToast('✅ Đã khôi phục ' + name);
+    await loadUsers();
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+async function permanentlyDeleteUser(id, name) {
+  if (!confirm(`⚠️ XÓA VĨNH VIỄN "${name}"?\n\nKhông thể hoàn tác. Nếu người này từng chấm công / có bảng công liên kết, thao tác có thể bị chặn hoặc làm mất liên kết dữ liệu lịch sử.\n\nChỉ xóa nếu chắc chắn không cần dữ liệu liên quan.`)) return;
+  try {
+    await sbFetch(`users?id=eq.${id}`, { method:'DELETE' });
+    showToast('✅ Đã xóa vĩnh viễn ' + name);
+    await loadInactiveUsers();
+  } catch(e) {
+    showToast('❌ Không xóa được — có thể do còn dữ liệu liên kết (chấm công, bảng công...)');
+  }
 }
