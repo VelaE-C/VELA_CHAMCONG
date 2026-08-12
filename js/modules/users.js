@@ -116,16 +116,23 @@ function renderUserListData(users) {
   `;
 }
 
-// ── ADD USER FORM TOGGLE ──
-function toggleAddUserForm() {
-  const body = document.getElementById('addUserFormBody');
-  const btn  = document.getElementById('addUserToggleBtn');
-  if (!body || !btn) return;
-  const isOpen = body.style.display !== 'none';
-  body.style.display = isOpen ? 'none' : 'block';
-  btn.textContent = isOpen ? '+ Thêm mới' : '− Đóng';
-  btn.style.background = isOpen ? '' : 'var(--gray2)';
-  btn.style.color      = isOpen ? '' : 'var(--gray7)';
+// ── ADD USER MODAL ──
+function openAddUserModal() {
+  resetAddUserForm();
+  document.getElementById('addUserModal').style.display = 'block';
+}
+
+function closeAddUserModal() {
+  document.getElementById('addUserModal').style.display = 'none';
+}
+
+function resetAddUserForm() {
+  document.getElementById('editUserId').value = '';
+  ['hrName','hrCode','hrEmail','hrPhone','hrPosition','hrJoinDate'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('hrRole').value = 'employee';
+  document.getElementById('hrScope').value = 'fixed';
+  document.getElementById('hrProject').value = '';
+  onScopeChange();
 }
 
 // ── EDIT USER MODAL ──
@@ -390,7 +397,7 @@ async function saveUser() {
     } else {
       const created = await sbFetch('users', { method:'POST', body: JSON.stringify(body) });
       showToast('✅ Đã thêm '+body.full_name);
-      cancelEditUser();
+      closeAddUserModal();
       await loadUsers();
       // Tự mở modal để upload PDF ngay
       if (created && created[0]?.id) {
