@@ -152,17 +152,19 @@ function renderTeamTable(users,attByUser,dateList,el,month,year) {
   }).join('');
 
   el.innerHTML = `
-    <div style="padding:10px 14px;font-size:11px;color:var(--gray5);font-style:italic;border-bottom:1px solid var(--gray2);position:sticky;top:0;z-index:4;background:white">
+    <div style="padding:10px 14px;font-size:11px;color:var(--gray5);font-style:italic;border-bottom:1px solid var(--gray2)">
       📅 ${periodLabel}
     </div>
-    <table style="border-collapse:collapse;width:max-content;min-width:100%">
-      <thead><tr>
-        <th style="${stickyCornerName}padding:8px 12px;font-size:12px;font-weight:600;color:var(--gray5);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--gray2)">Họ tên</th>
-        <th style="${stickyCornerTotal}padding:8px 4px;font-size:12px;font-weight:600;color:var(--gray5);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--gray2)">Tổng</th>
-        ${dayHeaders}
-      </tr></thead>
-      <tbody>${tableRows}</tbody>
-    </table>`;
+    <div style="overflow:auto;max-height:calc(100vh - 240px)">
+      <table style="border-collapse:collapse;width:max-content;min-width:100%">
+        <thead><tr>
+          <th style="${stickyCornerName}padding:8px 12px;font-size:12px;font-weight:600;color:var(--gray5);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--gray2)">Họ tên</th>
+          <th style="${stickyCornerTotal}padding:8px 4px;font-size:12px;font-weight:600;color:var(--gray5);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--gray2)">Tổng</th>
+          ${dayHeaders}
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>`;
 }
 
 // ── EXPORT EXCEL ──
