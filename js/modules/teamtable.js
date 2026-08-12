@@ -110,13 +110,22 @@ function renderTeamTable(users,attByUser,dateList,el,month,year) {
       let cell = '';
       if (r) {
         if (r.status === 'present' || r.status === 'leave') {
-          // Kiểm tra bù công
-          const isBuCong = r.is_adjusted
+          // Bù công nguyên ngày (CHT duyệt yêu cầu "quên chấm công cả ngày")
+          const isBuCongFull = r.is_adjusted
             && (r.note||'').includes('[Bù công CHT duyệt]')
             && !r.distance_m
             && !(r.note||'').includes('[Bù checkout');
-          if (isBuCong) {
+          // Bù công riêng phần checkout (CHT duyệt yêu cầu "quên checkout")
+          const isBuCongCheckout = r.is_adjusted
+            && (r.note||'').includes('[Bù checkout');
+
+          if (isBuCongFull) {
             cell = `<div style="color:var(--amber);font-size:10px;font-weight:700;line-height:1.4;text-align:center">📋<br>Bù<br>công</div>`;
+          } else if (isBuCongCheckout) {
+            const tin = new Date(r.check_time);
+            const tinStr = `${tin.getHours()}:${String(tin.getMinutes()).padStart(2,'0')}`;
+            cell = `<div style="color:var(--green);font-size:10px;font-weight:600;line-height:1.3">${tinStr}</div>`
+                 + `<div style="color:var(--amber);font-size:9px;font-weight:700;line-height:1.3">📋 Bù công</div>`;
           } else {
             const tin = new Date(r.check_time);
             const tinStr = `${tin.getHours()}:${String(tin.getMinutes()).padStart(2,'0')}`;
