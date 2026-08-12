@@ -41,6 +41,11 @@ function navigate(pageId) {
     return;
   }
 
+  // Cập nhật URL — F5 (refresh) sẽ quay lại đúng tab này thay vì về mặc định
+  if (window.location.hash !== '#' + pageId) {
+    history.replaceState(null, '', '#' + pageId);
+  }
+
   // Hide all pages
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   const target = document.getElementById(`page-${pageId}`);
@@ -173,8 +178,11 @@ async function loadApp() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display    = 'block';
 
-    // Navigate to checkin by default
-    navigate('checkin');
+    // Navigate to page from URL hash nếu hợp lệ (F5 giữ tab), mặc định về checkin
+    const hashPage = window.location.hash.replace('#', '');
+    const hashCheck = PAGE_PERMISSIONS[hashPage];
+    const hashValid = hashPage && NAV_PAGES[hashPage] && (!hashCheck || hashCheck());
+    navigate(hashValid ? hashPage : 'checkin');
 
   } catch(e) {
     if (e.message !== 'Unauthorized') {
