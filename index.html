@@ -208,52 +208,10 @@
           <h2>👤 Nhân Sự</h2>
         </div>
 
-        <!-- Add user form (collapsible) -->
-        <div class="card" style="padding:0;overflow:hidden">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer" onclick="toggleAddUserForm()">
-            <div class="card-title" style="margin:0">Thêm nhân sự mới</div>
-            <button id="addUserToggleBtn" class="btn btn-primary btn-sm">+ Thêm mới</button>
-          </div>
-          <div id="addUserFormBody" style="display:none;padding:0 20px 20px;border-top:1px solid var(--gray2)">
-            <div style="height:16px"></div>
-            <div class="form-row">
-              <div class="form-group"><label class="form-label">Họ tên</label><input type="text" id="hrName" class="form-control" placeholder="Nguyễn Văn A"></div>
-              <div class="form-group"><label class="form-label">Mã nhân viên</label><input type="text" id="hrCode" class="form-control" placeholder="VL-001"></div>
-            </div>
-            <div class="form-row">
-              <div class="form-group"><label class="form-label">Email (đăng nhập Google)</label><input type="email" id="hrEmail" class="form-control" placeholder="nva@gmail.com"></div>
-              <div class="form-group"><label class="form-label">Số điện thoại</label><input type="text" id="hrPhone" class="form-control" placeholder="0901234567"></div>
-            </div>
-            <div class="form-row">
-              <div class="form-group"><label class="form-label">Chức vụ</label><input type="text" id="hrPosition" class="form-control" placeholder="Kỹ sư công trường"></div>
-              <div class="form-group"><label class="form-label">Phân quyền</label>
-                <select id="hrRole" class="form-control">
-                  <option value="employee">👷 Nhân viên</option>
-                  <option value="cht">🏗 CHT (Chỉ huy trưởng)</option>
-                  <option value="site_admin">🛡 Admin công trình</option>
-                  <option value="superadmin">🔑 Super Admin</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group"><label class="form-label">Phạm vi dự án</label>
-                <select id="hrScope" class="form-control" onchange="onScopeChange()">
-                  <option value="fixed">📍 Cố định — 1 dự án</option>
-                  <option value="multi">🗂 Đa dự án</option>
-                  <option value="all">🌐 Roaming — tất cả</option>
-                </select>
-              </div>
-              <div class="form-group"><label class="form-label">Ngày vào làm</label><input type="date" id="hrJoinDate" class="form-control"></div>
-            </div>
-            <div class="form-group" id="fixedProjectRow"><label class="form-label">Dự án cố định</label><select id="hrProject" class="form-control"><option value="">-- Chọn dự án --</option></select></div>
-            <div class="form-group" id="multiProjectRow" style="display:none"><label class="form-label">Danh sách dự án (giữ Ctrl để chọn nhiều)</label><select id="hrAllowedProjects" class="form-control" multiple style="height:100px"></select></div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-primary" style="flex:1" id="btnSaveUser" onclick="saveUser()">Thêm nhân sự</button>
-              <button class="btn btn-secondary" id="btnCancelUser" style="display:none" onclick="toggleAddUserForm()">Hủy</button>
-            </div>
-            <div style="font-size:12px;color:var(--gray5);text-align:center;margin-top:8px">💡 Sau khi thêm, cửa sổ chỉnh sửa sẽ tự mở để upload hồ sơ PDF</div>
-            <input type="hidden" id="editUserId">
-          </div>
+        <!-- Add user trigger -->
+        <div class="card" style="display:flex;align-items:center;justify-content:space-between">
+          <div class="card-title" style="margin:0">Thêm nhân sự mới</div>
+          <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">+ Thêm mới</button>
         </div>
 
         <!-- Filter + list -->
@@ -658,6 +616,53 @@
     </div>
   </div>
 
+  <!-- ADD USER MODAL -->
+  <div id="addUserModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;overflow-y:auto;padding:40px 16px">
+    <div style="background:white;border-radius:12px;padding:28px;width:100%;max-width:560px;margin:0 auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+        <div class="card-title" style="margin:0">➕ Thêm nhân sự mới</div>
+        <button onclick="closeAddUserModal()" class="btn btn-secondary btn-icon">✕</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Họ tên</label><input type="text" id="hrName" class="form-control" placeholder="Nguyễn Văn A"></div>
+        <div class="form-group"><label class="form-label">Mã nhân viên</label><input type="text" id="hrCode" class="form-control" placeholder="VL-001"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Email (đăng nhập Google)</label><input type="email" id="hrEmail" class="form-control" placeholder="nva@gmail.com"></div>
+        <div class="form-group"><label class="form-label">Số điện thoại</label><input type="text" id="hrPhone" class="form-control" placeholder="0901234567"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Chức vụ</label><input type="text" id="hrPosition" class="form-control" placeholder="Kỹ sư công trường"></div>
+        <div class="form-group"><label class="form-label">Phân quyền</label>
+          <select id="hrRole" class="form-control">
+            <option value="employee">👷 Nhân viên</option>
+            <option value="cht">🏗 CHT (Chỉ huy trưởng)</option>
+            <option value="site_admin">🛡 Admin công trình</option>
+            <option value="superadmin">🔑 Super Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Phạm vi dự án</label>
+          <select id="hrScope" class="form-control" onchange="onScopeChange()">
+            <option value="fixed">📍 Cố định — 1 dự án</option>
+            <option value="multi">🗂 Đa dự án</option>
+            <option value="all">🌐 Roaming — tất cả</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Ngày vào làm</label><input type="date" id="hrJoinDate" class="form-control"></div>
+      </div>
+      <div class="form-group" id="fixedProjectRow"><label class="form-label">Dự án cố định</label><select id="hrProject" class="form-control"><option value="">-- Chọn dự án --</option></select></div>
+      <div class="form-group" id="multiProjectRow" style="display:none"><label class="form-label">Danh sách dự án (giữ Ctrl để chọn nhiều)</label><select id="hrAllowedProjects" class="form-control" multiple style="height:100px"></select></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1" id="btnSaveUser" onclick="saveUser()">Thêm nhân sự</button>
+        <button class="btn btn-secondary" onclick="closeAddUserModal()">Hủy</button>
+      </div>
+      <div style="font-size:12px;color:var(--gray5);text-align:center;margin-top:8px">💡 Sau khi thêm, cửa sổ chỉnh sửa sẽ tự mở để upload hồ sơ PDF</div>
+      <input type="hidden" id="editUserId">
+    </div>
+  </div>
+
 </div><!-- /mainApp -->
 
 <!-- Toast -->
@@ -692,6 +697,7 @@ if ('serviceWorker' in navigator) {
 // Close modal on backdrop click
 document.addEventListener('click', e => {
   if (e.target === document.getElementById('editUserModal')) closeEditUserModal();
+  if (e.target === document.getElementById('addUserModal')) closeAddUserModal();
 });
 </script>
 
