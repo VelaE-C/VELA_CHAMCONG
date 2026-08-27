@@ -605,3 +605,19 @@ tbody tr:hover td { background: var(--gray1); }
 }
 .ls-preset-btn:hover { border-color: var(--blue); color: var(--blue); }
 .ls-preset-btn.active { background: var(--blue); border-color: var(--blue); color: white; }
+
+/* ===== Stepper 3 bước duyệt Đơn Xin Nghỉ Phép ===== */
+.leave-stepper { display: flex; align-items: flex-start; }
+.leave-step { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+.leave-step-dot {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--gray2); color: var(--gray5);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+.leave-step-label { font-size: 10px; color: var(--gray5); white-space: nowrap; text-align: center; max-width: 76px; }
+.leave-step.active .leave-step-dot { background: var(--amber); color: white; }
+.leave-step.active .leave-step-label { color: var(--amber); font-weight: 600; }
+.leave-step.done .leave-step-dot { background: var(--green); color: white; }
+.leave-step.done .leave-step-label { color: var(--green); }
+.leave-step-line { flex: 1; height: 2px; background: var(--gray2); margin: 12px 4px 0; min-width: 20px; }
