@@ -77,8 +77,8 @@ function renderUserListData(users) {
     el.innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div>Không tìm thấy nhân sự nào</div>';
     return;
   }
-  const roleMap   = { superadmin:'🔑 Super Admin', site_admin:'🛡 Admin CT', employee:'👷 Nhân viên' };
-  const roleBadge = { superadmin:'badge-navy', site_admin:'badge-blue', employee:'badge-green' };
+  const roleMap   = { superadmin:'🔑 Super Admin', site_admin:'🛡 Admin CT', cht:'🏗 CHT', tp_hcns:'📋 TP.HCNS', pho_tgd:'🎖 Phó TGĐ', employee:'👷 Nhân viên' };
+  const roleBadge = { superadmin:'badge-navy', site_admin:'badge-blue', cht:'badge-amber', tp_hcns:'badge-gray', pho_tgd:'badge-red', employee:'badge-green' };
   const arrow = col => col===userSortCol ? (userSortDir===1?' ↑':' ↓') : '';
 
   el.innerHTML = `
@@ -177,6 +177,8 @@ function openEditUserModal(userId) {
     roleSelEdit.innerHTML = `
       <option value="employee">👷 Nhân viên</option>
       <option value="cht">🏗 CHT (Chỉ huy trưởng)</option>
+      <option value="tp_hcns">📋 TP.HCNS</option>
+      <option value="pho_tgd">🎖 Phó TGĐ</option>
       <option value="site_admin">🛡 Admin công trình</option>
       ${STATE.currentUser?.role === 'superadmin' ? '<option value="superadmin">🔑 Super Admin</option>' : ''}
     `;
