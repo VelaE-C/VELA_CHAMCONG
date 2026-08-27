@@ -8,6 +8,7 @@ const NAV_PAGES = {
   checkin:    { label: 'Chấm Công',       icon: '⏱', adminOnly: false, role: null },
   mytable:    { label: 'Bảng Công Tôi',   icon: '📋', adminOnly: false, role: null },
   requests:   { label: 'Bù Công',         icon: '📤', adminOnly: false, role: null },
+  leave:      { label: 'Đơn Nghỉ Phép',   icon: '🌴', adminOnly: false, role: null },
   teamtable:  { label: 'Bảng Công Nhóm',  icon: '👥', adminOnly: true,  role: null },
   approvals:  { label: 'Phê Duyệt',       icon: '✅', adminOnly: false, role: 'cht' },
   quanso:     { label: 'Báo Cáo Quân Số', icon: '👷', adminOnly: false, role: null },
@@ -23,8 +24,9 @@ const PAGE_PERMISSIONS = {
   checkin:   () => true,
   mytable:   () => true,
   requests:  () => true,
+  leave:     () => true,
   quanso:    () => true,
-  approvals: () => isCHT() || canViewAdmin(),
+  approvals: () => isCHT() || canViewAdmin() || ['tp_hcns','pho_tgd'].includes(STATE.currentUser?.role),
   teamtable: () => canViewAdmin(),
   projects:  () => canViewAdmin(),
   users:     () => canViewAdmin(),
@@ -76,6 +78,7 @@ function navigate(pageId) {
     users:     () => { renderUserList(); },
     projects:  () => { renderProjectList(); },
     requests:  () => initRequests(),
+    leave:     () => initLeave(),
     approvals: () => initApprovals(),
     laborsummary: () => initLaborSummary(),
   };
@@ -89,7 +92,7 @@ function buildNav() {
   const admin     = canViewAdmin();
 
   const groups = [
-    { label: 'CHẤM CÔNG', pages: ['checkin', 'mytable', 'requests', 'teamtable', 'quanso'] },
+    { label: 'CHẤM CÔNG', pages: ['checkin', 'mytable', 'requests', 'leave', 'teamtable', 'quanso'] },
     { label: 'DUYỆT CÔNG', pages: ['approvals'] },
     { label: 'QUẢN LÝ',   pages: ['projects', 'users', 'adjust', 'warnings', 'laborsummary'] },
   ];
@@ -100,7 +103,7 @@ function buildNav() {
       const page = NAV_PAGES[p];
       if (!page) return false;
       // 'cht' role: show approvals page
-      if (page.role === 'cht') return isCHT() || admin;
+      if (page.role === 'cht') return isCHT() || admin || ['tp_hcns','pho_tgd'].includes(STATE.currentUser?.role);
       // admin-only pages
       if (page.adminOnly) return admin;
       return true;
