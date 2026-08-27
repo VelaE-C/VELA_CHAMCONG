@@ -224,6 +224,9 @@
               <option value="">Tất cả quyền</option>
               <option value="superadmin">🔑 Super Admin</option>
               <option value="site_admin">🛡 Admin CT</option>
+              <option value="pho_tgd">🎖 Phó TGĐ</option>
+              <option value="tp_hcns">📋 TP.HCNS</option>
+              <option value="cht">🏗 CHT</option>
               <option value="employee">👷 Nhân viên</option>
             </select>
             <button class="btn btn-secondary btn-sm" onclick="clearFilterUsers()">✕ Xóa lọc</button>
@@ -497,7 +500,69 @@
         </div>
       </div>
 
-      <!-- ── PAGE: PHÊ DUYỆT (CHT/Admin) ── -->
+      <!-- ── PAGE: ĐƠN XIN NGHỈ PHÉP (nhân viên gửi, duyệt 3 bước) ── -->
+      <div class="page" id="page-leave">
+        <div class="content-header">
+          <h2>🌴 Đơn Xin Nghỉ Phép</h2>
+          <p>Duyệt tuần tự 3 bước: Trưởng bộ phận → TP.HCNS → Phó Tổng Giám Đốc</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Gửi đơn mới</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Dự án</label>
+              <select id="lvProject" class="form-control"><option value="">-- Chọn dự án --</option></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Loại phép</label>
+              <select id="lvCategory" class="form-control">
+                <option value="ke_hoach">📅 Theo kế hoạch</option>
+                <option value="bat_thuong">⚡ Bất thường</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Chi tiết loại phép</label>
+            <select id="lvType" class="form-control">
+              <option value="om">🤒 Nghỉ ốm</option>
+              <option value="dam_tang">⚰️ Đám tang</option>
+              <option value="dam_cuoi">💍 Đám cưới</option>
+              <option value="sinh">👶 Nghỉ sinh</option>
+              <option value="khac">📌 Khác</option>
+              <option value="khong_luong">💸 Không lương</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Từ ngày</label>
+              <input type="date" id="lvDateFrom" class="form-control" onchange="lvCalcCong()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Đến ngày</label>
+              <input type="date" id="lvDateTo" class="form-control" onchange="lvCalcCong()">
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--gray1);border:1px solid var(--gray2);border-radius:8px;padding:12px 16px;margin-bottom:12px">
+            <span style="font-size:13px;color:var(--gray5);font-weight:500">Tổng số công nghỉ <span style="font-weight:400">(T2–T6: 1 công · T7: 0.5 công)</span></span>
+            <span id="lvTotalCong" style="font-size:24px;font-weight:700;font-family:monospace;color:var(--amber)">0</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Lý do <span style="color:var(--red)">*</span></label>
+            <textarea id="lvReason" class="form-control" placeholder="Chi tiết lý do xin nghỉ..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Người thay thế tạm thời</label><input type="text" id="lvRepName" class="form-control" placeholder="Họ tên"></div>
+            <div class="form-group"><label class="form-label">Chức vụ người thay thế</label><input type="text" id="lvRepPosition" class="form-control" placeholder="VD: GSHT"></div>
+          </div>
+          <button class="btn btn-primary" id="lvSubmitBtn" onclick="submitLeaveRequest()" style="width:100%">📤 Gửi đơn xin nghỉ phép</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Đơn đã gửi</div>
+          <div id="myLeaveList" class="empty-state"><div class="empty-icon">📋</div>Chưa có đơn nghỉ phép nào</div>
+        </div>
+      </div>
       <div class="page" id="page-approvals">
         <div class="content-header">
           <h2>✅ Phê Duyệt Bù Công</h2>
@@ -512,6 +577,17 @@
           </div>
           <div id="approvalList" class="empty-state">
             <div class="empty-icon">✅</div>Không có yêu cầu nào đang chờ
+          </div>
+        </div>
+
+        <!-- Pending leave requests (3-bước) -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="card-title" style="margin:0">🌴 Đơn Xin Nghỉ Phép chờ duyệt</div>
+            <button onclick="loadPendingLeaveRequests()" class="btn btn-secondary btn-sm">🔄 Làm mới</button>
+          </div>
+          <div id="leaveApprovalList" class="empty-state">
+            <div class="empty-icon">✅</div>Không có đơn phép nào cần bạn duyệt
           </div>
         </div>
 
@@ -637,6 +713,8 @@
           <select id="hrRole" class="form-control">
             <option value="employee">👷 Nhân viên</option>
             <option value="cht">🏗 CHT (Chỉ huy trưởng)</option>
+            <option value="tp_hcns">📋 TP.HCNS</option>
+            <option value="pho_tgd">🎖 Phó TGĐ</option>
             <option value="site_admin">🛡 Admin công trình</option>
             <option value="superadmin">🔑 Super Admin</option>
           </select>
@@ -685,6 +763,7 @@
 <script src="js/modules/hrdocs.js"></script>
 <script src="js/modules/warnings.js"></script>
 <script src="js/modules/requests.js"></script>
+<script src="js/modules/leave.js"></script>
 <script src="js/modules/approvals.js"></script>
 <script src="js/modules/laborsummary.js"></script>
 <script src="js/main.js"></script>
