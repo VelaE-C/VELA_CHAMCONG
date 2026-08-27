@@ -4,6 +4,7 @@
 // ── INIT ──
 async function initApprovals() {
   await loadPendingRequests();
+  await loadPendingLeaveRequests();
 }
 
 // ── LOAD DANH SÁCH CHỜ DUYỆT ──
@@ -350,5 +351,215 @@ async function loadApprovalHistory() {
     </table></div>`;
   } catch(e) {
     showEmpty('approvalHistory', '❌', e.message);
+  }
+}
+
+// ============================================================
+// ĐƠN XIN NGHỈ PHÉP — duyệt 3 bước: CHT → TP.HCNS → Phó TGĐ
+// ============================================================
+
+const LEAVE_TYPE_LABEL_APV = {
+  om: '🤒 Nghỉ ốm', dam_tang: '⚰️ Đám tang', dam_cuoi: '💍 Đám cưới',
+  sinh: '👶 Nghỉ sinh', khac: '📌 Khác', khong_luong: '💸 Không lương',
+};
+const LEAVE_STEP_LABEL = { pending_cht: 'Trưởng bộ phận', pending_hcns: 'TP.HCNS', pending_pho_tgd: 'Phó TGĐ' };
+
+function emptyLeaveHtml() {
+  return `<div class="empty-state"><div class="empty-icon">✅</div>Không có đơn phép nào cần bạn duyệt</div>`;
+}
+
+async function loadPendingLeaveRequests() {
+  const el = document.getElementById('leaveApprovalList');
+  if (!el) return;
+  showLoading('leaveApprovalList');
+
+  try {
+    const u = STATE.currentUser;
+    let rows = [];
+
+    if (['site_admin','superadmin'].includes(u.role)) {
+      rows = await sbFetch(`leave_requests?status=in.(pending_cht,pending_hcns,pending_pho_tgd)&order=created_at.desc&limit=100`);
+
+    } else if (u.role === 'tp_hcns') {
+      rows = await sbFetch(`leave_requests?status=eq.pending_hcns&order=created_at.desc&limit=100`);
+
+    } else if (u.role === 'cht' || u.role === 'pho_tgd') {
+      const step = u.role === 'cht' ? 'pending_cht' : 'pending_pho_tgd';
+      let url = `leave_requests?status=eq.${step}&order=created_at.desc&limit=100`;
+
+      if (u.project_scope === 'fixed') {
+        if (!u.project_id) { el.innerHTML = emptyLeaveHtml(); return; }
+        url += `&project_id=eq.${u.project_id}`;
+      } else if (u.project_scope === 'multi') {
+        const ids = u.allowed_projects || [];
+        if (!ids.length) { el.innerHTML = emptyLeaveHtml(); return; }
+        url += `&project_id=in.(${ids.join(',')})`;
+      }
+      // project_scope === 'all' → không lọc, thấy tất cả dự án
+
+      rows = await sbFetch(url);
+
+    } else {
+      el.innerHTML = emptyLeaveHtml();
+      return;
+    }
+
+    if (!rows.length) { el.innerHTML = emptyLeaveHtml(); return; }
+    el.innerHTML = rows.map(r => renderLeaveApprovalCard(r)).join('');
+
+  } catch(e) {
+    showEmpty('leaveApprovalList', '❌', e.message);
+  }
+}
+
+function renderLeaveApprovalCard(r) {
+  const proj = STATE.projects.find(p => p.id === r.project_id);
+  const user = STATE.users.find(u => u.id === r.user_id);
+  const from = r.date_from.split('-').reverse().join('/');
+  const to   = r.date_to.split('-').reverse().join('/');
+  const stepLabel = LEAVE_STEP_LABEL[r.status] || '';
+
+  return `<div id="lvreq-${r.id}" style="padding:16px;background:white;border:1px solid var(--gray2);
+    border-radius:8px;margin-bottom:10px">
+
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div style="font-weight:700;font-size:14px;color:var(--gray8)">${user?.full_name||'—'}</div>
+        <div style="font-size:12px;color:var(--gray5);margin-top:2px">${user?.employee_code||''} · ${proj?.code||''}</div>
+      </div>
+      <span class="badge badge-amber" style="flex-shrink:0">⏳ Chờ ${stepLabel}</span>
+    </div>
+
+    <div style="background:var(--gray1);border-radius:6px;padding:10px 12px;margin-bottom:12px">
+      <div style="font-size:13px;color:var(--navy);font-weight:600;margin-bottom:4px">
+        ${from} → ${to} · ${r.total_cong} công · ${LEAVE_TYPE_LABEL_APV[r.leave_type]||r.leave_type}
+      </div>
+      <div style="font-size:13px;color:var(--gray8)">📝 ${r.reason}</div>
+      ${r.replacement_name ? `<div style="font-size:12px;color:var(--gray5);margin-top:6px">
+        👤 Người thay thế: <strong>${r.replacement_name}</strong>${r.replacement_position?' — '+r.replacement_position:''}
+      </div>` : ''}
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button onclick="approveLeaveStep('${r.id}','${r.status}','${r.user_id}','${r.project_id}','${r.date_from}','${r.date_to}')"
+        class="btn btn-success" style="flex:1">✅ Duyệt</button>
+      <button onclick="toggleLeaveReject('${r.id}')"
+        class="btn btn-danger" style="flex:1">❌ Từ chối</button>
+    </div>
+
+    <div id="lvreject-${r.id}" style="display:none;margin-top:8px">
+      <textarea id="lvnote-${r.id}" class="form-control" style="min-height:60px"
+        placeholder="Nhập lý do từ chối..."></textarea>
+      <button onclick="rejectLeaveRequest('${r.id}','${r.status}')"
+        class="btn btn-danger" style="width:100%;margin-top:6px">Xác nhận từ chối</button>
+    </div>
+  </div>`;
+}
+
+function toggleLeaveReject(reqId) {
+  const el = document.getElementById(`lvreject-${reqId}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  if (el.style.display === 'block') document.getElementById(`lvnote-${reqId}`)?.focus();
+}
+
+async function approveLeaveStep(reqId, currentStatus, userId, projectId, dateFrom, dateTo) {
+  const card = document.getElementById(`lvreq-${reqId}`);
+  card.querySelectorAll('button').forEach(b => b.disabled = true);
+
+  const stepMap = {
+    pending_cht:     { field: 'cht',     next: 'pending_hcns' },
+    pending_hcns:    { field: 'hcns',    next: 'pending_pho_tgd' },
+    pending_pho_tgd: { field: 'pho_tgd', next: 'approved' },
+  };
+  const step = stepMap[currentStatus];
+  if (!step) { card.querySelectorAll('button').forEach(b => b.disabled = false); return; }
+
+  try {
+    await sbFetch(`leave_requests?id=eq.${reqId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        [`${step.field}_id`]:           STATE.currentUser.id,
+        [`${step.field}_approved_at`]:  new Date().toISOString(),
+        status: step.next
+      })
+    });
+
+    if (step.next === 'approved') {
+      showToast('✅ Đã duyệt xong — đang cập nhật Bảng Công Nhóm...');
+      await markAttendanceForApprovedLeave(userId, projectId, dateFrom, dateTo);
+      showToast('✅ Đã duyệt đơn phép và cập nhật Bảng Công Nhóm');
+    } else {
+      showToast('✅ Đã duyệt — chuyển sang bước tiếp theo');
+    }
+
+    card.style.opacity = '0.5';
+    setTimeout(() => card.remove(), 400);
+  } catch(e) {
+    card.querySelectorAll('button').forEach(b => b.disabled = false);
+    showToast('❌ ' + e.message);
+  }
+}
+
+async function rejectLeaveRequest(reqId, currentStatus) {
+  const note = document.getElementById(`lvnote-${reqId}`)?.value.trim();
+  if (!note) { showToast('⚠️ Nhập lý do từ chối'); return; }
+
+  const stepKey = { pending_cht:'cht', pending_hcns:'hcns', pending_pho_tgd:'pho_tgd' }[currentStatus] || '';
+  const card = document.getElementById(`lvreq-${reqId}`);
+  card.querySelectorAll('button').forEach(b => b.disabled = true);
+
+  try {
+    await sbFetch(`leave_requests?id=eq.${reqId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status:            'rejected',
+        rejected_by:       STATE.currentUser.id,
+        rejected_at:       new Date().toISOString(),
+        rejected_at_step:  stepKey,
+        reject_note:       note
+      })
+    });
+    showToast('✅ Đã từ chối đơn phép');
+    card.style.opacity = '0.5';
+    setTimeout(() => card.remove(), 400);
+  } catch(e) {
+    card.querySelectorAll('button').forEach(b => b.disabled = false);
+    showToast('❌ ' + e.message);
+  }
+}
+
+// Tự động đánh dấu status='leave' vào bảng attendance cho các ngày đã duyệt
+// (bỏ qua Chủ nhật, và KHÔNG ghi đè nếu ngày đó đã có chấm công thật)
+async function markAttendanceForApprovedLeave(userId, projectId, dateFrom, dateTo) {
+  let d = new Date(dateFrom + 'T00:00:00');
+  const end = new Date(dateTo + 'T00:00:00');
+
+  while (d <= end) {
+    if (d.getDay() !== 0) {
+      const dateStr = localDateStr(d);
+      try {
+        const existing = await sbFetch(`attendance?user_id=eq.${userId}&check_date=eq.${dateStr}&limit=1`);
+        if (existing.length && existing[0].check_time) {
+          // Đã có chấm công thật ngày này — không ghi đè
+        } else if (existing.length) {
+          await sbFetch(`attendance?id=eq.${existing[0].id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'leave', is_adjusted: true, note: '[Nghỉ phép đã duyệt]' })
+          });
+        } else {
+          await sbFetch('attendance', {
+            method: 'POST',
+            body: JSON.stringify({
+              user_id: userId, project_id: projectId, check_date: dateStr,
+              status: 'leave', is_adjusted: true, note: '[Nghỉ phép đã duyệt]'
+            })
+          });
+        }
+      } catch(e) {
+        console.warn('Không đánh dấu được ngày', dateStr, e.message);
+      }
+    }
+    d.setDate(d.getDate() + 1);
   }
 }
